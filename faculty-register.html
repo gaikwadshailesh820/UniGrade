@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Faculty Register | UniGrade</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="nav-container">
+    <a href="index.html" class="logo">🎓 UniGrade</a>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="faculty-login.html">Faculty Login</a>
+      <a href="institution-login.html">Institution Login</a>
+    </div>
+  </div>
+</nav>
+
+<div class="home-container">
+  <div class="login-card fade-up" style="max-width:520px;">
+    <div class="login-header">
+      <div class="login-icon">👨‍🏫</div>
+      <h1>Create Faculty Account</h1>
+      <p>Register with a unique email and password to access the faculty portal.</p>
+    </div>
+
+    <div id="regAlert" style="display:none;"></div>
+
+    <label>Full Name *</label>
+    <input type="text" id="regName" placeholder="Dr. John Smith" onkeydown="if(event.key==='Enter') facultyRegister()">
+
+    <label>Email Address *</label>
+    <input type="email" id="regEmail" placeholder="faculty@university.edu" onkeydown="if(event.key==='Enter') facultyRegister()">
+
+    <label>Department</label>
+    <input type="text" id="regDept" placeholder="e.g. Computer Science" onkeydown="if(event.key==='Enter') facultyRegister()">
+
+    <label>Password * <span style="color:#94a3b8;font-size:11px;font-weight:400;">(min 6 characters)</span></label>
+    <input type="password" id="regPassword" placeholder="Create a strong password" onkeydown="if(event.key==='Enter') facultyRegister()">
+
+    <label>Confirm Password *</label>
+    <input type="password" id="regConfirm" placeholder="Repeat your password" onkeydown="if(event.key==='Enter') facultyRegister()">
+
+    <button onclick="facultyRegister()">Create Account →</button>
+
+    <p class="login-footer-text">Already have an account? <a href="faculty-login.html">Login here</a></p>
+  </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>

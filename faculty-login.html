@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Faculty Login | UniGrade</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="nav-container">
+    <a href="index.html" class="logo">🎓 UniGrade</a>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="fixed.html">SGPA Calculator</a>
+      <a href="institution-login.html">Institution Login</a>
+    </div>
+  </div>
+</nav>
+
+<div class="home-container">
+  <div class="login-card fade-up">
+    <div class="login-header">
+      <div class="login-icon">👨‍🏫</div>
+      <h1>Faculty Login</h1>
+      <p>Access your grading dashboard and student records.</p>
+      <div class="hero-badge" style="margin-top:12px;">Academic ERP • Student Records • Excel Upload</div>
+    </div>
+
+    <div id="loginAlert" style="display:none;"></div>
+
+    <label>Email Address</label>
+    <input type="email" id="facultyEmail" placeholder="faculty@university.edu" onkeydown="if(event.key==='Enter') facultyLogin()">
+
+    <label>Password</label>
+    <input type="password" id="facultyPassword" placeholder="Enter your password" onkeydown="if(event.key==='Enter') facultyLogin()">
+
+    <div class="forgot-password"><a href="faculty-forgot.html">Forgot Password?</a></div>
+
+    <button onclick="facultyLogin()">Login to Dashboard →</button>
+
+    <div class="divider">or</div>
+
+    <button class="btn-secondary" onclick="window.location.href='faculty-register.html'" style="font-size:14px;">Create New Account →</button>
+
+    <p class="login-footer-text">Not a faculty? <a href="institution-login.html">Institution Login</a></p>
+  </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>

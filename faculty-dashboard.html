@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Faculty Dashboard | UniGrade</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="nav-container">
+    <a href="index.html" class="logo">🎓 UniGrade</a>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="faculty-dashboard.html" class="active-nav">Dashboard</a>
+      <a href="student-records.html">Records</a>
+      <a href="faculty-login.html" onclick="localStorage.removeItem('facultyEmail')" style="color:#dc2626;">Logout</a>
+    </div>
+  </div>
+</nav>
+
+<div class="dashboard-container">
+
+  <div class="dashboard-top fade-up">
+    <p style="font-size:13px;color:var(--text-muted);font-weight:600;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:8px;">Faculty Portal</p>
+    <h1 class="dashboard-title">Faculty Dashboard</h1>
+    <p class="dashboard-subtitle" id="welcomeMsg">Welcome back. Manage marks, subjects and student records.</p>
+    <div class="hero-badge" style="margin-top:14px;">Academic ERP • Student Records • Excel Upload</div>
+  </div>
+
+  <div class="stats-grid fade-up delay-1">
+    <div class="stat-card"><h2 id="statStudents">0</h2><p>Total Students</p></div>
+    <div class="stat-card"><h2 id="statSubjects">0</h2><p>Subjects Uploaded</p></div>
+    <div class="stat-card"><h2 id="statRecords">0</h2><p>Mark Records</p></div>
+    <div class="stat-card"><h2 id="statPending">0</h2><p>Pending Reviews</p></div>
+  </div>
+
+  <h2 class="section-title">Quick Actions</h2>
+  <div class="actions-grid fade-up delay-2">
+    <div class="action-card">
+      <h3>📊 Upload Subject Marks</h3>
+      <p>Upload student marks using Excel sheets for any subject and batch.</p>
+      <button onclick="window.location.href='upload-excel.html'">Open Module →</button>
+    </div>
+    <div class="action-card">
+      <h3>👨‍🎓 Student Records</h3>
+      <p>View, search, filter and manage all uploaded student mark records.</p>
+      <button onclick="window.location.href='student-records.html'">View Records →</button>
+    </div>
+    <div class="action-card">
+      <h3>📚 My Subjects</h3>
+      <p>View assigned subjects, batch statistics and performance analytics.</p>
+      <button onclick="window.location.href='my-subjects.html'">View Subjects →</button>
+    </div>
+    <div class="action-card">
+      <h3>⚙️ My Profile</h3>
+      <p>Manage faculty account information and change your password.</p>
+      <button onclick="window.location.href='profile.html'">Edit Profile →</button>
+    </div>
+  </div>
+
+  <div style="margin-top:50px;">
+    <h2 class="section-title">Recent Uploads</h2>
+    <div id="recentUploads"></div>
+  </div>
+
+</div>
+
+<footer class="footer">
+  <div class="footer-content">
+    <h3>🎓 UniGrade</h3>
+    <p>Modern Academic Evaluation Platform</p>
+    <p class="copyright">© 2026 UniGrade. All Rights Reserved.</p>
+  </div>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>

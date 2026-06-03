@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Institution Login | UniGrade</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="nav-container">
+    <a href="index.html" class="logo">🎓 UniGrade</a>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="fixed.html">SGPA Calculator</a>
+      <a href="faculty-login.html">Faculty Login</a>
+    </div>
+  </div>
+</nav>
+
+<div class="home-container">
+  <div class="login-card fade-up">
+    <div class="login-header">
+      <div class="login-icon">🏛️</div>
+      <h1>Institution Login</h1>
+      <p>Manage batch records, generate grades and export results.</p>
+    </div>
+
+    <div id="loginAlert" style="display:none;"></div>
+
+    <label>Institution Email</label>
+    <input type="email" id="institutionEmail" placeholder="admin@university.edu" onkeydown="if(event.key==='Enter') institutionLogin()">
+
+    <label>Password</label>
+    <input type="password" id="institutionPassword" placeholder="Enter your password" onkeydown="if(event.key==='Enter') institutionLogin()">
+
+    <div class="forgot-password"><a href="institution-forgot.html">Forgot Password?</a></div>
+
+    <button onclick="institutionLogin()">Login to Dashboard →</button>
+
+    <div class="divider">or</div>
+
+    <button class="btn-secondary" onclick="window.location.href='institution-register.html'" style="font-size:14px;">Register Institution →</button>
+
+    <p class="login-footer-text">Are you a Faculty? <a href="faculty-login.html">Faculty Login</a></p>
+  </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>

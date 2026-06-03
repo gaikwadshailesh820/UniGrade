@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Forgot Password | UniGrade</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="nav-container">
+    <a href="index.html" class="logo">🎓 UniGrade</a>
+    <div class="nav-links">
+      <a href="faculty-login.html">← Back to Login</a>
+    </div>
+  </div>
+</nav>
+
+<div class="home-container">
+  <div class="login-card fade-up" style="max-width:520px;">
+    <div class="login-header">
+      <div class="login-icon">🔑</div>
+      <h1>Reset Password</h1>
+      <p>Enter your registered email to receive a verification code.</p>
+    </div>
+
+    <div id="forgotAlert" style="display:none;"></div>
+
+    <label>Registered Email Address</label>
+    <input type="email" id="forgotEmail" placeholder="faculty@university.edu">
+
+    <button id="sendOtpBtn" onclick="sendForgotOTP('faculty')">Send Verification Code →</button>
+
+    <!-- OTP + New Password Step -->
+    <div id="otpStep" style="display:none;">
+      <h3>🔐 Enter Verification Code & New Password</h3>
+
+      <label>Verification Code</label>
+      <input type="text" id="otpInput" placeholder="Enter 6-digit code" maxlength="6" style="letter-spacing:4px;font-size:18px;font-weight:700;">
+
+      <label>New Password <span style="color:#94a3b8;font-size:11px;font-weight:400;">(min 6 chars)</span></label>
+      <input type="password" id="newPassword" placeholder="Create a new password">
+
+      <label>Confirm New Password</label>
+      <input type="password" id="confirmPassword" placeholder="Repeat new password">
+
+      <button onclick="verifyOTPAndReset('faculty')" style="margin-top:8px;">Reset Password →</button>
+    </div>
+
+    <p class="login-footer-text">Remembered your password? <a href="faculty-login.html">Login here</a></p>
+  </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>

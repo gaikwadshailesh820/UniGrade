@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Records | UniGrade</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="index.html" class="logo">🎓 UniGrade</a>
+            <div class="nav-links">
+                <a href="faculty-dashboard.html">← Dashboard</a>
+                <a href="upload-excel.html">Upload Marks</a>
+                <a href="faculty-login.html" onclick="localStorage.removeItem('facultyEmail')" style="color:#dc2626;">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="page-wrapper">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:16px; margin-bottom:36px;" class="fade-up">
+            <div>
+                <p style="font-size:13px;color:var(--text-muted);font-weight:600;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:8px;">Faculty Portal</p>
+                <h1 style="font-size:40px;font-weight:800;color:var(--primary);letter-spacing:-1px;margin-bottom:8px;">Student Records</h1>
+                <p style="color:var(--text-muted);font-size:16px;">All uploaded mark records across subjects.</p>
+            </div>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+                <button class="btn-secondary" onclick="exportCSV()" style="width:auto;padding:11px 22px;font-size:14px;">⬇️ Export CSV</button>
+                <button onclick="window.location.href='upload-excel.html'" style="width:auto;padding:11px 22px;font-size:14px;">+ Upload Marks</button>
+            </div>
+        </div>
+
+        <!-- STATS -->
+        <div class="stats-grid fade-up delay-1" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); margin-bottom:32px;">
+            <div class="stat-card">
+                <h2 id="totalStudents">—</h2>
+                <p>Students</p>
+            </div>
+            <div class="stat-card">
+                <h2 id="totalSubjects">—</h2>
+                <p>Subjects</p>
+            </div>
+            <div class="stat-card">
+                <h2 id="totalRecords">—</h2>
+                <p>Records</p>
+            </div>
+            <div class="stat-card">
+                <h2 id="avgMarks">—</h2>
+                <p>Class Average</p>
+            </div>
+        </div>
+
+        <!-- SEARCH & FILTER -->
+        <div class="card fade-up delay-2" style="margin-bottom:24px; padding:20px 24px;">
+            <div class="search-filter-bar" style="gap:12px;">
+                <input type="text" id="searchInput" placeholder="🔍 Search by name or roll no..." style="margin:0; flex:2;">
+                <select id="subjectFilter" style="margin:0; flex:1;">
+                    <option value="">All Subjects</option>
+                </select>
+                <select id="batchFilter" style="margin:0; flex:1;">
+                    <option value="">All Batches</option>
+                </select>
+                <button class="btn-secondary" onclick="clearFilters()" style="width:auto;padding:12px 18px;font-size:13.5px;">Clear</button>
+            </div>
+        </div>
+
+        <!-- TABLE -->
+        <div class="fade-up delay-3">
+            <div id="recordsContainer">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- DELETE CONFIRM MODAL -->
+    <div class="modal-overlay" id="deleteModal">
+        <div class="modal-box" style="text-align:center;">
+            <div style="font-size:56px; margin-bottom:16px;">🗑️</div>
+            <h2>Delete All Records?</h2>
+            <p>This will permanently delete all uploaded mark records. This action cannot be undone.</p>
+            <div style="display:flex; gap:12px; margin-top:28px;">
+                <button class="btn-secondary" onclick="document.getElementById('deleteModal').classList.remove('active')" style="flex:1;">Cancel</button>
+                <button class="btn-danger" onclick="confirmDelete()" style="flex:1;">Yes, Delete All</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        let allRecords = [];
+
+        document.addEventListener('DOMContentLoaded', function(){ if(!localStorage.getItem('facultyEmail')){ window.location.href='faculty-login.html'; return; } loadRecords(); });
+
+        function loadRecords() {
+            allRecords = JSON.parse(localStorage.getItem('uploadedRecords') || '[]');
+            updateStats();
+            populateFilters();
+            renderTable(allRecords);
+
+            document.getElementById('searchInput').addEventListener('input', applyFilters);
+            document.getElementById('subjectFilter').addEventListener('change', applyFilters);
+            document.getElementById('batchFilter').addEventListener('change', applyFilters);
+        }
+
+        function updateStats() {
+            const students = [...new Set(allRecords.map(r => r.rollNo))];
+            const subjects = [...new Set(allRecords.map(r => r.subject))];
+            const avg = allRecords.length ? (allRecords.reduce((s, r) => s + (r.marks || 0), 0) / allRecords.length).toFixed(1) : '—';
+            document.getElementById('totalStudents').textContent = students.length || '—';
+            document.getElementById('totalSubjects').textContent = subjects.length || '—';
+            document.getElementById('totalRecords').textContent = allRecords.length || '—';
+            document.getElementById('avgMarks').textContent = avg;
+        }
+
+        function populateFilters() {
+            const subjects = [...new Set(allRecords.map(r => r.subject))];
+            const batches = [...new Set(allRecords.map(r => r.batch))];
+            const sf = document.getElementById('subjectFilter');
+            const bf = document.getElementById('batchFilter');
+
+            subjects.forEach(s => { const o = document.createElement('option'); o.value = s; o.textContent = s; sf.appendChild(o); });
+            batches.forEach(b => { const o = document.createElement('option'); o.value = b; o.textContent = b; bf.appendChild(o); });
+        }
+
+        function applyFilters() {
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const subject = document.getElementById('subjectFilter').value;
+            const batch = document.getElementById('batchFilter').value;
+
+            const filtered = allRecords.filter(r => {
+                const matchSearch = !search || r.name.toLowerCase().includes(search) || r.rollNo.toLowerCase().includes(search);
+                const matchSubject = !subject || r.subject === subject;
+                const matchBatch = !batch || r.batch === batch;
+                return matchSearch && matchSubject && matchBatch;
+            });
+
+            renderTable(filtered);
+        }
+
+        function clearFilters() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('subjectFilter').value = '';
+            document.getElementById('batchFilter').value = '';
+            renderTable(allRecords);
+        }
+
+        function renderTable(records) {
+            const container = document.getElementById('recordsContainer');
+
+            if (records.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state" style="background:var(--surface);border-radius:var(--radius-lg);border:1px solid rgba(255,255,255,0.5);">
+                        <div class="empty-icon">📭</div>
+                        <h3>${allRecords.length === 0 ? 'No records uploaded yet' : 'No matching records'}</h3>
+                        <p>${allRecords.length === 0 ? 'Upload subject marks to see them here.' : 'Try adjusting your search or filters.'}</p>
+                        ${allRecords.length === 0 ? '<button onclick="window.location.href=\'upload-excel.html\'" style="margin-top:20px;width:auto;padding:12px 28px;">Upload Now →</button>' : ''}
+                    </div>`;
+                return;
+            }
+
+            let html = `
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
+                    <p style="font-size:14px;color:var(--text-muted);font-weight:500;">${records.length} record${records.length !== 1 ? 's' : ''} found</p>
+                    <button class="btn-danger" onclick="document.getElementById('deleteModal').classList.add('active')" style="width:auto;padding:9px 18px;font-size:13px;">🗑️ Clear All Data</button>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Roll No</th>
+                                <th>Student Name</th>
+                                <th>Subject</th>
+                                <th>Batch</th>
+                                <th>Type</th>
+                                <th>Theory (CA+Mid+End)</th>
+                                <th>Practical (Lab+Viva+End)</th>
+                                <th>Final Marks</th>
+                                <th>Grade</th>
+                                <th>Uploaded On</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+
+            records.forEach((r, i) => {
+                const pct = ((r.marks / (r.maxMarks || 100)) * 100).toFixed(0);
+                const grade = getGrade(Number(pct));
+                const theoryDetail = r.theoryTotal != null
+                    ? `${r.theoryTotal} <span style="color:#94a3b8;font-size:11px;">(${r.ca||0}+${r.midsem||0}+${r.endsem||0})</span>`
+                    : '—';
+                const practicalDetail = r.practicalTotal != null && r.practicalTotal > 0
+                    ? `${r.practicalTotal} <span style="color:#94a3b8;font-size:11px;">(${r.labManual||0}+${r.viva||0}+${r.endPractical||0})</span>`
+                    : '—';
+                html += `
+                    <tr>
+                        <td>${i + 1}</td>
+                        <td><strong>${r.rollNo}</strong></td>
+                        <td>${r.name}</td>
+                        <td><span class="badge badge-blue">${r.subject}</span></td>
+                        <td>${r.batch || '—'}</td>
+                        <td><span class="badge badge-green">${r.examType||'theory'}</span></td>
+                        <td>${theoryDetail}</td>
+                        <td>${practicalDetail}</td>
+                        <td><strong>${r.marks} / ${r.maxMarks || 100}</strong></td>
+                        <td><span class="grade-${grade}" style="font-size:15px;">${grade}</span></td>
+                        <td style="font-size:12.5px;color:var(--text-muted);">${r.uploadedOn || '—'}</td>
+                    </tr>`;
+            });
+
+            html += `</tbody></table></div>`;
+            container.innerHTML = html;
+        }
+
+        function getGrade(pct) {
+            if (pct >= 90) return 'O';
+            if (pct >= 80) return 'A+';
+            if (pct >= 70) return 'A';
+            if (pct >= 60) return 'B+';
+            if (pct >= 50) return 'B';
+            return 'F';
+        }
+
+        function exportCSV() {
+            if (allRecords.length === 0) { alert('No records to export.'); return; }
+            const headers = ['Roll No', 'Name', 'Subject', 'Batch', 'Marks', 'Max Marks', 'Academic Year', 'Uploaded On'];
+            const rows = allRecords.map(r => [r.rollNo, r.name, r.subject, r.batch, r.marks, r.maxMarks || 100, r.academicYear || '—', r.uploadedOn || '—']);
+            const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'UniGrade_StudentRecords.csv';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function confirmDelete() {
+            localStorage.removeItem('uploadedRecords');
+            localStorage.removeItem('uploadHistory');
+            allRecords = [];
+            document.getElementById('deleteModal').classList.remove('active');
+            updateStats();
+            renderTable([]);
+        }
+    </script>
+</body>
+</html>

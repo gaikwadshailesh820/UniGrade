@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SGPA Calculator | UniGrade</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="nav-container">
+    <a href="index.html" class="logo">🎓 UniGrade</a>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="fixed.html" class="active-nav">SGPA Calculator</a>
+      <div class="dropdown">
+        <a href="#" id="loginBtn">Sign In ▼</a>
+        <div class="dropdown-content" id="dropdownMenu">
+          <a href="faculty-login.html">👨‍🏫 Faculty Login</a>
+          <a href="institution-login.html">🏛️ Institution Login</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<div class="page-wrapper" style="max-width:960px;">
+
+  <div style="text-align:center;margin-bottom:32px;" class="fade-up">
+    <p style="font-size:13px;color:var(--text-muted);font-weight:600;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:8px;">Tools</p>
+    <h1 style="font-size:40px;font-weight:800;color:var(--primary);letter-spacing:-1px;margin-bottom:8px;">🎓 SGPA Calculator</h1>
+    <p style="color:var(--text-muted);font-size:15px;">Calculate SGPA using the official evaluation scheme — Theory, Practical, or both.</p>
+  </div>
+
+  <!-- Evaluation Scheme Reference -->
+  <div class="eval-scheme fade-up delay-1" style="margin-bottom:24px;">
+    <h4>📋 Evaluation Scheme</h4>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;flex-wrap:wrap;">
+      <div>
+        <p style="font-size:12px;font-weight:700;color:var(--primary);margin-bottom:8px;">📖 THEORY (60%)</p>
+        <div class="eval-row">
+          <span class="eval-pill">CA — 25 marks</span>
+          <span class="eval-pill">Midsem — 25 marks</span>
+          <span class="eval-pill">Endsem — 50 marks</span>
+          <span class="eval-pill total">Total: 100</span>
+        </div>
+      </div>
+      <div>
+        <p style="font-size:12px;font-weight:700;color:#059669;margin-bottom:8px;">🔬 PRACTICAL (40%)</p>
+        <div class="eval-row">
+          <span class="eval-pill practical">Lab Manual — 10</span>
+          <span class="eval-pill practical">Lab Assessment — 10</span>
+          <span class="eval-pill practical">Viva-voce — 30</span>
+          <span class="eval-pill practical">End Practical — 50</span>
+          <span class="eval-pill practical total">Total: 100</span>
+        </div>
+      </div>
+    </div>
+    <p style="font-size:12px;color:var(--text-muted);margin-top:10px;">For combined subjects: Final = Theory × 0.6 + Practical × 0.4</p>
+  </div>
+
+  <!-- Student Name -->
+  <div class="student-box fade-up delay-1" style="width:100%;max-width:100%;">
+    <label>Student Name</label>
+    <input type="text" id="studentName" placeholder="Enter Student Name">
+  </div>
+
+  <!-- Subject Cards -->
+  <div class="container" style="width:100%;max-width:100%;padding-bottom:0;">
+    <div id="subjectsContainer">
+      <div class="subject-card">
+        <div class="two-col">
+          <div>
+            <label>Subject Name</label>
+            <input type="text" class="subjectName" placeholder="e.g. Data Structures">
+          </div>
+          <div>
+            <label>Credits</label>
+            <input type="number" class="credits" placeholder="e.g. 4" min="1" max="10">
+          </div>
+        </div>
+        <div>
+          <label>Exam Type</label>
+          <select class="examTypeSelect" onchange="updateExamTypeVisibility(this)" style="margin-bottom:14px;">
+            <option value="theory">Theory Only (60%)</option>
+            <option value="practical">Practical Only (40%)</option>
+            <option value="both">Theory + Practical (Combined)</option>
+          </select>
+        </div>
+        <div class="theory-section">
+          <p style="font-size:12px;font-weight:700;color:var(--primary-mid);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">📖 Theory (Max: 100)</p>
+          <div class="three-col">
+            <div>
+              <label>Continuous Assessment <span style="color:#94a3b8;font-size:11px;">(max 25)</span></label>
+              <input type="number" class="ca" placeholder="0–25" min="0" max="25">
+            </div>
+            <div>
+              <label>Mid-term <span style="color:#94a3b8;font-size:11px;">(max 25)</span></label>
+              <input type="number" class="midterm" placeholder="0–25" min="0" max="25">
+            </div>
+            <div>
+              <label>End-term <span style="color:#94a3b8;font-size:11px;">(max 50)</span></label>
+              <input type="number" class="endterm" placeholder="0–50" min="0" max="50">
+            </div>
+          </div>
+        </div>
+        <div class="practical-section" style="display:none;margin-top:16px;">
+          <p style="font-size:12px;font-weight:700;color:#059669;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">🔬 Practical (Max: 100)</p>
+          <div class="two-col">
+            <div>
+              <label>Lab Manual <span style="color:#94a3b8;font-size:11px;">(max 10)</span></label>
+              <input type="number" class="labManual" placeholder="0–10" min="0" max="10">
+            </div>
+            <div>
+              <label>Lab Assessment <span style="color:#94a3b8;font-size:11px;">(max 10)</span></label>
+              <input type="number" class="labAssessment" placeholder="0–10" min="0" max="10">
+            </div>
+          </div>
+          <div class="two-col">
+            <div>
+              <label>Internal Viva-voce <span style="color:#94a3b8;font-size:11px;">(max 30)</span></label>
+              <input type="number" class="viva" placeholder="0–30" min="0" max="30">
+            </div>
+            <div>
+              <label>End-term Practical <span style="color:#94a3b8;font-size:11px;">(max 50)</span></label>
+              <input type="number" class="endPractical" placeholder="0–50" min="0" max="50">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="button-group" style="margin-bottom:24px;">
+      <button onclick="addSubject()" class="btn-secondary">+ Add Subject</button>
+      <button onclick="calculateSGPA()">📊 Calculate SGPA</button>
+    </div>
+
+    <!-- Grade reference -->
+    <div class="card" style="margin-bottom:24px;">
+      <h3 style="color:var(--primary);font-size:15px;font-weight:700;margin-bottom:14px;">Grade Point Reference</h3>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;">
+        <span class="badge badge-purple">≥90 → 10 (O)</span>
+        <span class="badge badge-green">≥80 → 9 (A+)</span>
+        <span class="badge badge-green">≥70 → 8 (A)</span>
+        <span class="badge badge-blue">≥60 → 7 (B+)</span>
+        <span class="badge badge-blue">≥50 → 6 (B)</span>
+        <span class="badge badge-blue">≥40 → 5 (C)</span>
+        <span class="badge badge-red">&lt;40 → 0 (F)</span>
+      </div>
+    </div>
+
+    <div class="result-box">
+      <h2>Final SGPA</h2>
+      <span id="totalMarks">—</span>
+      <p id="sgpaLabel" style="display:none;"></p>
+    </div>
+
+    <!-- Breakdown table -->
+    <div id="breakdownTable" style="display:none;margin-top:0;"></div>
+  </div>
+
+</div>
+
+<footer class="footer">
+  <div class="footer-content">
+    <h3>🎓 UniGrade</h3>
+    <p>Modern Academic Evaluation Platform</p>
+    <p class="copyright">© 2026 UniGrade. All Rights Reserved.</p>
+  </div>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>

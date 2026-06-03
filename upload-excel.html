@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Upload Subject Marks | UniGrade</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="nav-container">
+    <a href="index.html" class="logo">🎓 UniGrade</a>
+    <div class="nav-links">
+      <a href="faculty-dashboard.html">← Dashboard</a>
+      <a href="student-records.html">Records</a>
+      <a href="faculty-login.html" onclick="localStorage.removeItem('facultyEmail')" style="color:#dc2626;">Logout</a>
+    </div>
+  </div>
+</nav>
+
+<div class="page-wrapper">
+
+  <div style="margin-bottom:32px;" class="fade-up">
+    <p style="font-size:13px;color:var(--text-muted);font-weight:600;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:8px;">Faculty Portal</p>
+    <h1 style="font-size:40px;font-weight:800;color:var(--primary);letter-spacing:-1px;margin-bottom:8px;">📊 Upload Subject Marks</h1>
+    <p style="color:var(--text-muted);font-size:15px;">Upload an Excel or CSV file with student marks using the evaluation scheme.</p>
+  </div>
+
+  <!-- Evaluation Scheme Reference -->
+  <div class="eval-scheme fade-up delay-1" style="margin-bottom:24px;">
+    <h4>📋 Accepted Column Names</h4>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div>
+        <p style="font-size:12px;font-weight:700;color:var(--primary);margin-bottom:8px;">📖 Theory Columns</p>
+        <div class="eval-row">
+          <span class="eval-pill">rollNo / Roll No</span>
+          <span class="eval-pill">name / Name</span>
+          <span class="eval-pill">ca / CA</span>
+          <span class="eval-pill">midsem / Midsem</span>
+          <span class="eval-pill">endsem / Endsem</span>
+        </div>
+      </div>
+      <div>
+        <p style="font-size:12px;font-weight:700;color:#059669;margin-bottom:8px;">🔬 Practical Columns</p>
+        <div class="eval-row">
+          <span class="eval-pill practical">labManual</span>
+          <span class="eval-pill practical">labAssessment</span>
+          <span class="eval-pill practical">viva</span>
+          <span class="eval-pill practical">endPractical</span>
+        </div>
+      </div>
+    </div>
+    <p style="font-size:12px;color:var(--text-muted);margin-top:10px;">💡 If Excel has only a "marks" column, it will be used as the total. Column names are case-insensitive.</p>
+  </div>
+
+  <!-- Upload Form -->
+  <div class="card fade-up delay-2" style="margin-bottom:24px;">
+    <h3 style="color:var(--primary);font-size:18px;font-weight:700;margin-bottom:20px;">Subject Details</h3>
+
+    <div id="uploadAlert" style="display:none;"></div>
+
+    <div class="two-col">
+      <div>
+        <label>Subject Name *</label>
+        <input type="text" id="subjectName" placeholder="e.g. Database Management System">
+      </div>
+      <div>
+        <label>Subject Code</label>
+        <input type="text" id="subjectCode" placeholder="e.g. BCA301">
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div>
+        <label>Batch *</label>
+        <input type="text" id="batchName" placeholder="e.g. BCA Division A">
+      </div>
+      <div>
+        <label>Exam Type *</label>
+        <select id="examTypeUpload">
+          <option value="theory">Theory (CA + Midsem + Endsem)</option>
+          <option value="practical">Practical (Lab + Viva + End Practical)</option>
+          <option value="both">Theory + Practical (Combined)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div>
+        <label>Semester</label>
+        <input type="text" id="semesterInput" placeholder="e.g. Semester 3">
+      </div>
+      <div>
+        <label>Academic Year</label>
+        <input type="text" id="academicYear" placeholder="e.g. 2025-26">
+      </div>
+    </div>
+
+    <div>
+      <label>Upload Excel / CSV File *</label>
+      <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="padding:10px;">
+    </div>
+
+    <button onclick="readExcelFile()" style="margin-top:8px;">📂 Upload &amp; Preview</button>
+  </div>
+
+  <!-- Preview Section -->
+  <div class="card fade-up" id="previewSection" style="display:none;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+      <div>
+        <h3 style="color:var(--primary);font-size:18px;font-weight:700;margin:0 0 4px;">Preview Records</h3>
+        <p id="recordCount" style="margin:0;font-size:14px;color:var(--text-muted);"></p>
+      </div>
+    </div>
+    <div id="tableContainer" style="margin-bottom:20px;"></div>
+    <div class="button-group">
+      <button onclick="saveRecords()">💾 Save Records</button>
+      <button class="btn-secondary" onclick="clearPreview()">✕ Clear</button>
+    </div>
+  </div>
+
+</div>
+
+<footer class="footer">
+  <div class="footer-content">
+    <h3>🎓 UniGrade</h3>
+    <p>Modern Academic Evaluation Platform</p>
+    <p class="copyright">© 2026 UniGrade. All Rights Reserved.</p>
+  </div>
+</footer>
+
+<script src="script.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function(){
+    if(!localStorage.getItem('facultyEmail')){
+      window.location.href = 'faculty-login.html';
+    }
+  });
+</script>
+</body>
+</html>

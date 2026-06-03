@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Institution Dashboard | UniGrade</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="nav-container">
+    <a href="index.html" class="logo">🎓 UniGrade</a>
+    <div class="nav-links">
+      <a href="index.html">Home</a>
+      <a href="institution-dashboard.html" class="active-nav">Dashboard</a>
+      <a href="relative-grading.html">Grading</a>
+      <a href="institution-login.html" onclick="localStorage.removeItem('institutionEmail');localStorage.removeItem('institutionName')" style="color:#dc2626;">Logout</a>
+    </div>
+  </div>
+</nav>
+
+<div class="dashboard-container">
+
+  <div class="dashboard-top fade-up">
+    <p style="font-size:13px;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Institution Portal</p>
+    <h1 class="dashboard-title">Institution Dashboard</h1>
+    <p class="dashboard-subtitle" id="instWelcome">Manage faculty uploads and generate final grades.</p>
+    <div class="hero-badge" style="margin-top:14px;">Faculty Uploads → Relative Grading → Export Results</div>
+  </div>
+
+  <div class="stats-grid fade-up delay-1">
+    <div class="stat-card"><h2 id="iStatStudents">0</h2><p>Total Students</p></div>
+    <div class="stat-card"><h2 id="iStatSubjects">0</h2><p>Subjects</p></div>
+    <div class="stat-card"><h2 id="iStatRecords">0</h2><p>Mark Records</p></div>
+    <div class="stat-card"><h2 id="iStatBatches">0</h2><p>Batches</p></div>
+  </div>
+
+  <h2 class="section-title">Institution Modules</h2>
+  <div class="actions-grid fade-up delay-2">
+    <div class="action-card">
+      <h3>📋 Faculty Upload Records</h3>
+      <p>View all student marks uploaded by faculty members across all subjects.</p>
+      <button onclick="window.location.href='student-records.html'">View Records →</button>
+    </div>
+    <div class="action-card">
+      <h3>📐 Generate Relative Grades</h3>
+      <p>Calculate fair grades using complete class performance and standard deviation.</p>
+      <button onclick="window.location.href='relative-grading.html'">Generate Grades →</button>
+    </div>
+    <div class="action-card">
+      <h3>📊 Grade Analytics</h3>
+      <p>View averages, grade distributions and performance trends by subject.</p>
+      <button onclick="window.location.href='relative-grading.html'">View Analytics →</button>
+    </div>
+    <div class="action-card">
+      <h3>📤 Export Final Results</h3>
+      <p>Download complete student results as CSV for reporting and archival.</p>
+      <button onclick="exportAllResults()">Export CSV →</button>
+    </div>
+  </div>
+
+  <div style="margin-top:50px;">
+    <h2 class="section-title">Subject Summary</h2>
+    <div id="subjectSummaryContainer"></div>
+  </div>
+
+</div>
+
+<footer class="footer">
+  <div class="footer-content">
+    <h3>🎓 UniGrade</h3>
+    <p>Modern Academic Evaluation Platform</p>
+    <p class="copyright">© 2026 UniGrade. All Rights Reserved.</p>
+  </div>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>
