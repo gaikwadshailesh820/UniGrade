@@ -1,42 +1,54 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Student Records | UniGrade</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
 
     <nav class="navbar">
         <div class="nav-container">
             <a href="index.html" class="logo">🎓 UniGrade</a>
             <div class="nav-links">
-                <a href="faculty-dashboard.html">← Dashboard</a>
+                <a href="institution-dashboard.html">← Dashboard</a>
                 <a href="upload-excel.html">Upload Marks</a>
-                <a href="faculty-login.html" onclick="localStorage.removeItem('facultyEmail')" style="color:#dc2626;">Logout</a>
+                <a href="institution-login.html"
+                    onclick="localStorage.removeItem('institutionEmail'); localStorage.removeItem('institutionName')"
+                    style="color:#dc2626;">Logout</a>
             </div>
         </div>
     </nav>
 
     <div class="page-wrapper">
-        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:16px; margin-bottom:36px;" class="fade-up">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:16px; margin-bottom:36px;"
+            class="fade-up">
             <div>
-                <p style="font-size:13px;color:var(--text-muted);font-weight:600;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:8px;">Faculty Portal</p>
-                <h1 style="font-size:40px;font-weight:800;color:var(--primary);letter-spacing:-1px;margin-bottom:8px;">Student Records</h1>
+                <p
+                    style="font-size:13px;color:var(--text-muted);font-weight:600;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:8px;">
+                    Institution Portal</p>
+                <h1 style="font-size:40px;font-weight:800;color:var(--primary);letter-spacing:-1px;margin-bottom:8px;">
+                    Student Records</h1>
                 <p style="color:var(--text-muted);font-size:16px;">All uploaded mark records across subjects.</p>
             </div>
             <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
-                <button class="btn-secondary" onclick="exportCSV()" style="width:auto;padding:11px 22px;font-size:14px;">⬇️ Export CSV</button>
-                <button onclick="window.location.href='upload-excel.html'" style="width:auto;padding:11px 22px;font-size:14px;">+ Upload Marks</button>
+                <button class="btn-secondary" onclick="exportCSV()"
+                    style="width:auto;padding:11px 22px;font-size:14px;">⬇️ Export CSV</button>
+                <button onclick="window.location.href='upload-excel.html'"
+                    style="width:auto;padding:11px 22px;font-size:14px;">+ Upload Marks</button>
             </div>
         </div>
 
         <!-- STATS -->
-        <div class="stats-grid fade-up delay-1" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); margin-bottom:32px;">
+        <div class="stats-grid fade-up delay-1"
+            style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); margin-bottom:32px;">
             <div class="stat-card">
                 <h2 id="totalStudents">—</h2>
                 <p>Students</p>
@@ -58,14 +70,16 @@
         <!-- SEARCH & FILTER -->
         <div class="card fade-up delay-2" style="margin-bottom:24px; padding:20px 24px;">
             <div class="search-filter-bar" style="gap:12px;">
-                <input type="text" id="searchInput" placeholder="🔍 Search by name or roll no..." style="margin:0; flex:2;">
+                <input type="text" id="searchInput" placeholder="🔍 Search by name or roll no..."
+                    style="margin:0; flex:2;">
                 <select id="subjectFilter" style="margin:0; flex:1;">
                     <option value="">All Subjects</option>
                 </select>
                 <select id="batchFilter" style="margin:0; flex:1;">
                     <option value="">All Batches</option>
                 </select>
-                <button class="btn-secondary" onclick="clearFilters()" style="width:auto;padding:12px 18px;font-size:13.5px;">Clear</button>
+                <button class="btn-secondary" onclick="clearFilters()"
+                    style="width:auto;padding:12px 18px;font-size:13.5px;">Clear</button>
             </div>
         </div>
 
@@ -80,4 +94,5 @@
 
     <script type="module" src="script.js"></script>
 </body>
+
 </html>

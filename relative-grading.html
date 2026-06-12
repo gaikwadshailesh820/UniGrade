@@ -1,14 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Relative Grading | UniGrade</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
 
     <nav class="navbar">
@@ -16,54 +19,85 @@
             <a href="index.html" class="logo">🎓 UniGrade</a>
             <div class="nav-links">
                 <a href="institution-dashboard.html">← Dashboard</a>
-                <a href="institution-login.html" onclick="localStorage.removeItem('institutionEmail')" style="color:#dc2626;">Logout</a>
+                <a href="institution-login.html" onclick="localStorage.removeItem('institutionEmail')"
+                    style="color:#dc2626;">Logout</a>
             </div>
         </div>
     </nav>
 
     <div class="page-wrapper">
         <div style="margin-bottom:36px;" class="fade-up">
-            <p style="font-size:13px;color:var(--text-muted);font-weight:600;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:8px;">Institution Portal</p>
-            <h1 style="font-size:40px;font-weight:800;color:var(--primary);letter-spacing:-1px;margin-bottom:8px;">Relative Grading Engine</h1>
-            <p style="color:var(--text-muted);font-size:16px;">Generate fair, statistically normalized grades using mean &amp; standard deviation.</p>
+            <p
+                style="font-size:13px;color:var(--text-muted);font-weight:600;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:8px;">
+                Institution Portal</p>
+            <h1 style="font-size:40px;font-weight:800;color:var(--primary);letter-spacing:-1px;margin-bottom:8px;">
+                Relative Grading Engine</h1>
+            <p style="color:var(--text-muted);font-size:16px;">Generate fair, statistically normalized grades using mean
+                &amp; standard deviation.</p>
         </div>
 
         <!-- GRADING EXPLANATION -->
-        <div class="card fade-up delay-1" style="margin-bottom:28px; border-left:4px solid var(--primary-mid); border-radius:0 var(--radius-lg) var(--radius-lg) 0;">
-            <h3 style="color:var(--primary);font-size:17px;font-weight:700;margin-bottom:14px;">📐 How Relative Grading Works</h3>
+        <div class="card fade-up delay-1"
+            style="margin-bottom:28px; border-left:4px solid var(--primary-mid); border-radius:0 var(--radius-lg) var(--radius-lg) 0;">
+            <h3 style="color:var(--primary);font-size:17px;font-weight:700;margin-bottom:14px;">📐 How Relative Grading
+                Works</h3>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;">
+
                 <div style="background:rgba(37,99,235,0.06);border-radius:12px;padding:16px;">
-                    <div style="font-size:24px;margin-bottom:6px;">S</div>
-                    <div style="font-size:13px;font-weight:700;color:var(--primary);">≥ Mean + 1.5 SD</div>
+                    <div style="font-size:24px;margin-bottom:6px;">A+</div>
+                    <div style="font-size:13px;font-weight:700;color:var(--primary);">Top Performers</div>
                     <div style="font-size:12px;color:var(--text-muted);">Outstanding</div>
+                    <div style="font-size:12px;font-weight:700;color:#7c3aed;">GP: 10</div>
                 </div>
+
                 <div style="background:rgba(37,99,235,0.06);border-radius:12px;padding:16px;">
                     <div style="font-size:24px;margin-bottom:6px;color:#059669;">A</div>
-                    <div style="font-size:13px;font-weight:700;color:var(--primary);">Mean + 0.5 SD to + 1.5 SD</div>
                     <div style="font-size:12px;color:var(--text-muted);">Excellent</div>
+                    <div style="font-size:12px;font-weight:700;color:#059669;">GP: 9</div>
                 </div>
+
                 <div style="background:rgba(37,99,235,0.06);border-radius:12px;padding:16px;">
-                    <div style="font-size:24px;margin-bottom:6px;color:#2563eb;">B</div>
-                    <div style="font-size:13px;font-weight:700;color:var(--primary);">Mean − 0.5 SD to + 0.5 SD</div>
+                    <div style="font-size:24px;margin-bottom:6px;color:#2563eb;">B+</div>
+                    <div style="font-size:12px;color:var(--text-muted);">Very Good</div>
+                    <div style="font-size:12px;font-weight:700;color:#2563eb;">GP: 8</div>
+                </div>
+
+                <div style="background:rgba(37,99,235,0.06);border-radius:12px;padding:16px;">
+                    <div style="font-size:24px;margin-bottom:6px;color:#0891b2;">B</div>
                     <div style="font-size:12px;color:var(--text-muted);">Good</div>
+                    <div style="font-size:12px;font-weight:700;color:#0891b2;">GP: 7</div>
                 </div>
+
                 <div style="background:rgba(37,99,235,0.06);border-radius:12px;padding:16px;">
-                    <div style="font-size:24px;margin-bottom:6px;color:#0891b2;">C</div>
-                    <div style="font-size:13px;font-weight:700;color:var(--primary);">Mean − 1.5 SD to − 0.5 SD</div>
+                    <div style="font-size:24px;margin-bottom:6px;color:#0ea5e9;">C+</div>
                     <div style="font-size:12px;color:var(--text-muted);">Average</div>
+                    <div style="font-size:12px;font-weight:700;color:#0ea5e9;">GP: 6</div>
                 </div>
+
                 <div style="background:rgba(37,99,235,0.06);border-radius:12px;padding:16px;">
-                    <div style="font-size:24px;margin-bottom:6px;color:#d97706;">D</div>
-                    <div style="font-size:13px;font-weight:700;color:var(--primary);">Mean − 2.5 SD to − 1.5 SD</div>
+                    <div style="font-size:24px;margin-bottom:6px;color:#d97706;">C</div>
                     <div style="font-size:12px;color:var(--text-muted);">Below Average</div>
+                    <div style="font-size:12px;font-weight:700;color:#d97706;">GP: 5</div>
                 </div>
+
+                <div style="background:rgba(37,99,235,0.06);border-radius:12px;padding:16px;">
+                    <div style="font-size:24px;margin-bottom:6px;color:#f97316;">D</div>
+                    <div style="font-size:12px;color:var(--text-muted);">Pass</div>
+                    <div style="font-size:12px;font-weight:700;color:#f97316;">GP: 4</div>
+                </div>
+
                 <div style="background:rgba(220,38,38,0.06);border-radius:12px;padding:16px;">
                     <div style="font-size:24px;margin-bottom:6px;color:#dc2626;">F</div>
-                    <div style="font-size:13px;font-weight:700;color:#dc2626;">Below Mean − 2.5 SD</div>
                     <div style="font-size:12px;color:var(--text-muted);">Fail</div>
+                    <div style="font-size:12px;font-weight:700;color:#dc2626;">GP: 0</div>
                 </div>
+
             </div>
+
         </div>
+
+
+
 
         <!-- CONTROLS -->
         <div class="card fade-up delay-2" style="margin-bottom:28px;">
@@ -83,8 +117,10 @@
                 </div>
             </div>
             <div style="display:flex;gap:12px;margin-top:8px;flex-wrap:wrap;">
-                <button onclick="generateGrades()" style="width:auto;padding:13px 32px;">📐 Generate Relative Grades</button>
-                <button class="btn-secondary" onclick="exportGrades()" style="width:auto;padding:13px 24px;">⬇️ Export CSV</button>
+                <button onclick="generateGrades()" style="width:auto;padding:13px 32px;">📐 Generate Relative
+                    Grades</button>
+                <button class="btn-secondary" onclick="exportGrades()" style="width:auto;padding:13px 24px;">⬇️ Export
+                    CSV</button>
             </div>
         </div>
 
@@ -95,7 +131,8 @@
 
             <!-- GRADE DISTRIBUTION -->
             <div class="card" style="margin-bottom:32px;">
-                <h3 style="color:var(--primary);font-size:17px;font-weight:700;margin-bottom:20px;">Grade Distribution</h3>
+                <h3 style="color:var(--primary);font-size:17px;font-weight:700;margin-bottom:20px;">Grade Distribution
+                </h3>
                 <div id="gradeDistribution" style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;"></div>
             </div>
         </div>
@@ -108,161 +145,18 @@
 
         <!-- NO DATA -->
         <div id="noDataMsg" style="display:none;">
-            <div class="empty-state" style="background:var(--surface);border-radius:var(--radius-lg);border:1px solid rgba(255,255,255,0.5);">
+            <div class="empty-state"
+                style="background:var(--surface);border-radius:var(--radius-lg);border:1px solid rgba(255,255,255,0.5);">
                 <div class="empty-icon">📭</div>
                 <h3>No records available</h3>
                 <p>Faculty must upload marks before grades can be generated.</p>
-                <button onclick="window.location.href='institution-dashboard.html'" style="margin-top:20px;width:auto;padding:12px 28px;">← Go to Dashboard</button>
+                <button onclick="window.location.href='institution-dashboard.html'"
+                    style="margin-top:20px;width:auto;padding:12px 28px;">← Go to Dashboard</button>
             </div>
         </div>
     </div>
 
-    <script src="script.js"></script>
-    <script>
-        let records = [];
-        let gradedResults = [];
-
-        document.addEventListener('DOMContentLoaded', function () { if(!localStorage.getItem('institutionEmail')){ window.location.href='institution-login.html'; return; }
-            records = JSON.parse(localStorage.getItem('uploadedRecords') || '[]');
-
-            if (records.length === 0) {
-                document.getElementById('noDataMsg').style.display = 'block';
-                return;
-            }
-
-            // Populate filters
-            const subjects = [...new Set(records.map(r => r.subject))];
-            const batches = [...new Set(records.map(r => r.batch))];
-            const sf = document.getElementById('gradingSubject');
-            const bf = document.getElementById('gradingBatch');
-
-            subjects.forEach(s => { const o = document.createElement('option'); o.value = s; o.textContent = s; sf.appendChild(o); });
-            batches.forEach(b => { const o = document.createElement('option'); o.value = b; o.textContent = b; bf.appendChild(o); });
-        });
-
-        function generateGrades() {
-            const subjFilter = document.getElementById('gradingSubject').value;
-            const batchFilter = document.getElementById('gradingBatch').value;
-
-            let filtered = records;
-            if (subjFilter !== 'all') filtered = filtered.filter(r => r.subject === subjFilter);
-            if (batchFilter !== 'all') filtered = filtered.filter(r => r.batch === batchFilter);
-
-            if (filtered.length === 0) {
-                alert('No records match the selected filters.'); return;
-            }
-
-            // If all subjects combined, compute total marks per student
-            let dataForGrading = [];
-
-            if (subjFilter === 'all') {
-                // Group by student, sum marks
-                const studentMap = {};
-                filtered.forEach(r => {
-                    if (!studentMap[r.rollNo]) studentMap[r.rollNo] = { rollNo: r.rollNo, name: r.name, batch: r.batch, totalMarks: 0, subjectCount: 0, subjects: [] };
-                    studentMap[r.rollNo].totalMarks += Number(r.marks) || 0;
-                    studentMap[r.rollNo].subjectCount += 1;
-                    studentMap[r.rollNo].subjects.push(r.subject);
-                });
-                dataForGrading = Object.values(studentMap).map(s => ({ ...s, marks: s.totalMarks / s.subjectCount }));
-            } else {
-                dataForGrading = filtered.map(r => ({ rollNo: r.rollNo, name: r.name, batch: r.batch, marks: Number(r.marks) || 0, subjects: [r.subject] }));
-            }
-
-            // Compute mean and SD
-            const markValues = dataForGrading.map(d => d.marks);
-            const mean = markValues.reduce((a, b) => a + b, 0) / markValues.length;
-            const variance = markValues.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / markValues.length;
-            const sd = Math.sqrt(variance);
-
-            // Assign grades
-            gradedResults = dataForGrading.map(d => {
-                const z = (d.marks - mean) / sd;
-                let grade;
-                if (z >= 1.5)       grade = 'S';
-                else if (z >= 0.5)  grade = 'A';
-                else if (z >= -0.5) grade = 'B';
-                else if (z >= -1.5) grade = 'C';
-                else if (z >= -2.5) grade = 'D';
-                else                grade = 'F';
-                return { ...d, grade, zScore: z.toFixed(2) };
-            });
-
-            // Sort by marks desc
-            gradedResults.sort((a, b) => b.marks - a.marks);
-
-            // Save
-            localStorage.setItem('relativeGrades', JSON.stringify(gradedResults));
-
-            // Show stats
-            const gradeCounts = { S:0, A:0, B:0, C:0, D:0, F:0 };
-            gradedResults.forEach(r => gradeCounts[r.grade]++);
-            const highest = Math.max(...markValues).toFixed(1);
-            const lowest = Math.min(...markValues).toFixed(1);
-
-            document.getElementById('statsSection').style.display = 'block';
-            document.getElementById('statsGrid').innerHTML = `
-                <div class="stat-card"><h2>${mean.toFixed(1)}</h2><p>Class Mean</p></div>
-                <div class="stat-card"><h2>${sd.toFixed(1)}</h2><p>Std Deviation</p></div>
-                <div class="stat-card"><h2>${highest}</h2><p>Highest</p></div>
-                <div class="stat-card"><h2>${lowest}</h2><p>Lowest</p></div>
-            `;
-
-            // Grade distribution bar chart
-            const maxCount = Math.max(...Object.values(gradeCounts));
-            const colors = { S:'#7c3aed', A:'#059669', B:'#2563eb', C:'#0891b2', D:'#d97706', F:'#dc2626' };
-            let distHtml = '';
-            Object.entries(gradeCounts).forEach(([g, count]) => {
-                const pct = maxCount ? ((count / maxCount) * 100).toFixed(0) : 0;
-                const pctOfClass = ((count / gradedResults.length) * 100).toFixed(0);
-                distHtml += `
-                    <div style="text-align:center;flex:1;min-width:70px;">
-                        <div style="font-size:12px;font-weight:700;color:${colors[g]};margin-bottom:6px;">${count} (${pctOfClass}%)</div>
-                        <div style="background:${colors[g]}22;border-radius:8px;overflow:hidden;height:120px;display:flex;align-items:flex-end;">
-                            <div style="background:${colors[g]};width:100%;height:${pct}%;border-radius:6px;transition:height 1s ease;"></div>
-                        </div>
-                        <div style="font-size:18px;font-weight:800;color:${colors[g]};margin-top:8px;">${g}</div>
-                    </div>`;
-            });
-            document.getElementById('gradeDistribution').innerHTML = distHtml;
-
-            // Results table
-            let html = `<div class="table-wrap"><table>
-                <thead><tr>
-                    <th>Rank</th><th>Roll No</th><th>Student Name</th><th>Batch</th>
-                    <th>Average Marks</th><th>Z-Score</th><th>Relative Grade</th>
-                </tr></thead><tbody>`;
-
-            gradedResults.forEach((r, i) => {
-                html += `<tr>
-                    <td><strong>#${i + 1}</strong></td>
-                    <td>${r.rollNo}</td>
-                    <td><strong>${r.name}</strong></td>
-                    <td>${r.batch || '—'}</td>
-                    <td>${r.marks.toFixed(1)}</td>
-                    <td>${r.zScore}</td>
-                    <td><span class="grade-${r.grade}" style="font-size:18px;">${r.grade}</span></td>
-                </tr>`;
-            });
-
-            html += `</tbody></table></div>`;
-            document.getElementById('resultsContainer').innerHTML = html;
-            document.getElementById('resultsSection').style.display = 'block';
-
-            document.getElementById('statsSection').scrollIntoView({ behavior: 'smooth' });
-        }
-
-        function exportGrades() {
-            if (gradedResults.length === 0) { alert('Generate grades first.'); return; }
-            const headers = ['Rank', 'Roll No', 'Name', 'Batch', 'Average Marks', 'Z-Score', 'Relative Grade'];
-            const rows = gradedResults.map((r, i) => [i+1, r.rollNo, r.name, r.batch, r.marks.toFixed(1), r.zScore, r.grade]);
-            const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            a.download = 'UniGrade_RelativeGrades.csv';
-            a.click();
-        }
-    </script>
+    <script type="module" src="script.js"></script>
 </body>
+
 </html>

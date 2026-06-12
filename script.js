@@ -6,235 +6,544 @@
    •                        LabManual(10) + LabAssessment(10) + Viva(30) + EndPractical(50) = Practical(100)
    ===================================================== */
 
-/* ── Utility ─────────────────────────────────────── */
-function $el(id){ return document.getElementById(id); }
+import { auth, db } from "./firebase.js";
 
-function showAlert(elId, type, msg){
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut
+} from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
+
+import {
+  doc,
+  setDoc,
+  getDoc,
+  collection,
+  addDoc,
+  getDocs,
+  deleteDoc,
+  query,
+  where
+} from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
+
+/* ── Utility ─────────────────────────────────────── */
+function $el(id) { return document.getElementById(id); }
+
+function showAlert(elId, type, msg) {
   const el = $el(elId);
-  if(!el) return;
+  if (!el) return;
   el.className = 'alert alert-' + type;
   el.innerHTML = msg;
   el.style.display = 'flex';
-  if(type === 'success') setTimeout(()=> el.style.display = 'none', 4000);
+  if (type === 'success') setTimeout(() => el.style.display = 'none', 4000);
 }
 
-function formatDate(){
-  return new Date().toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+function formatDate() {
+  return new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-function nameFromEmail(email){
-  return (email||'User').split('@')[0].replace(/[._]/g,' ')
+function nameFromEmail(email) {
+  return (email || 'User').split('@')[0].replace(/[._]/g, ' ')
     .replace(/\b\w/g, c => c.toUpperCase());
 }
 
-function setText(id, val){
+function setText(id, val) {
   const el = $el(id);
-  if(el) el.textContent = val;
+  if (el) el.textContent = val;
 }
 
 /* ── Account Storage Helpers ────────────────────── */
-function getAccounts(role){
+function getAccounts(role) {
   return JSON.parse(localStorage.getItem('accounts_' + role) || '[]');
 }
-function saveAccounts(role, arr){
+function saveAccounts(role, arr) {
   localStorage.setItem('accounts_' + role, JSON.stringify(arr));
 }
-function findAccount(role, email){
+function findAccount(role, email) {
   return getAccounts(role).find(a => a.email.toLowerCase() === email.toLowerCase());
 }
-function accountExists(role, email){
+function accountExists(role, email) {
   return !!findAccount(role, email);
 }
 
 /* ── OTP Storage ─────────────────────────────────── */
-function storeOTP(email, otp){
+function storeOTP(email, otp) {
   const otpData = { otp: String(otp), expires: Date.now() + 10 * 60 * 1000 };
   localStorage.setItem('otp_' + email.toLowerCase(), JSON.stringify(otpData));
 }
-function verifyOTP(email, inputOtp){
+function verifyOTP(email, inputOtp) {
   const raw = localStorage.getItem('otp_' + email.toLowerCase());
-  if(!raw) return false;
+  if (!raw) return false;
   const data = JSON.parse(raw);
-  if(Date.now() > data.expires) return false;
+  if (Date.now() > data.expires) return false;
   return String(inputOtp).trim() === data.otp;
 }
-function clearOTP(email){
+function clearOTP(email) {
   localStorage.removeItem('otp_' + email.toLowerCase());
 }
-function generateOTP(){
+function generateOTP() {
   return Math.floor(100000 + Math.random() * 900000);
 }
 
 /* ── Auth Guards ──────────────────────────────────── */
-function guardFaculty(){
-  if(!localStorage.getItem('facultyEmail')){
-    window.location.href = 'faculty-login.html';
-    return false;
-  }
-  return true;
-}
-function guardInstitution(){
-  if(!localStorage.getItem('institutionEmail')){
-    window.location.href = 'institution-login.html';
-    return false;
-  }
-  return true;
-}
+import {
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
+
+
 
 /* ── Faculty Registration ─────────────────────────── */
-function facultyRegister(){
-  const name     = ($el('regName')||{}).value?.trim();
-  const email    = ($el('regEmail')||{}).value?.trim();
-  const dept     = ($el('regDept')||{}).value?.trim();
-  const password = ($el('regPassword')||{}).value;
-  const confirm  = ($el('regConfirm')||{}).value;
+async function facultyRegister() {
+  const name = ($el('regName') || {}).value?.trim();
+  const email = ($el('regEmail') || {}).value?.trim();
+  const dept = ($el('regDept') || {}).value?.trim();
+  const password = ($el('regPassword') || {}).value;
+  const confirm = ($el('regConfirm') || {}).value;
 
-  if(!name || !email || !password || !confirm){
-    showAlert('regAlert','error','⚠️ Please fill all required fields.');
+  if (!name || !email || !password || !confirm) {
+    showAlert('regAlert', 'error', '⚠️ Please fill all required fields.');
     return;
   }
-  if(!email.includes('@') || !email.includes('.')){
-    showAlert('regAlert','error','⚠️ Enter a valid email address.');
+  if (!email.includes('@') || !email.includes('.')) {
+    showAlert('regAlert', 'error', '⚠️ Enter a valid email address.');
     return;
   }
-  if(password.length < 6){
-    showAlert('regAlert','error','⚠️ Password must be at least 6 characters.');
+  if (password.length < 6) {
+    showAlert('regAlert', 'error', '⚠️ Password must be at least 6 characters.');
     return;
   }
-  if(password !== confirm){
-    showAlert('regAlert','error','⚠️ Passwords do not match.');
+  if (password !== confirm) {
+    showAlert('regAlert', 'error', '⚠️ Passwords do not match.');
     return;
   }
-  if(accountExists('faculty', email)){
-    showAlert('regAlert','error','⚠️ An account with this email already exists.');
-    return;
+  try {
+
+    const userCredential =
+      await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+
+    await setDoc(
+      doc(db, "faculty", userCredential.user.uid),
+      {
+        name: name,
+        email: email,
+        department: dept || "",
+        approved: false,
+        role: "faculty",
+        createdAt: formatDate()
+      }
+    );
+
+    showAlert(
+      'regAlert',
+      'success',
+      '✅ Account created successfully! Redirecting to login...'
+    );
+
+    setTimeout(() => {
+
+      window.location.href =
+        'faculty-login.html';
+
+    }, 1500);
+
   }
 
-  const accounts = getAccounts('faculty');
-  accounts.push({ name, email, dept: dept||'', password, createdAt: formatDate() });
-  saveAccounts('faculty', accounts);
+  catch (error) {
 
-  showAlert('regAlert','success','✅ Account created successfully! Redirecting to login...');
-  setTimeout(() => window.location.href = 'faculty-login.html', 1500);
+    showAlert(
+      'regAlert',
+      'error',
+      '⚠️ ' + error.message
+    );
+
+  }
 }
+
 
 /* ── Faculty Login ────────────────────────────────── */
-function facultyLogin(){
-  const emailEl = $el('facultyEmail');
-  const passEl  = $el('facultyPassword');
-  if(!emailEl || !passEl) return;
+async function facultyLogin() {
 
-  const email    = emailEl.value.trim();
-  const password = passEl.value;
+  const email =
+    document.getElementById("facultyEmail").value;
 
-  if(!email || !password){
-    showAlert('loginAlert','error','⚠️ Please fill in all fields.');
-    return;
-  }
-  if(!email.includes('@') || !email.includes('.')){
-    showAlert('loginAlert','error','⚠️ Please enter a valid email address.');
-    return;
-  }
+  const password =
+    document.getElementById("facultyPassword").value;
 
-  const account = findAccount('faculty', email);
-  if(!account){
-    showAlert('loginAlert','error','⚠️ No account found with this email. <a href="faculty-register.html" style="color:#1d4ed8;font-weight:700;">Create one →</a>');
+  if (!email || !password) {
+
+    alert("Please fill all fields");
+
     return;
-  }
-  if(account.password !== password){
-    showAlert('loginAlert','error','⚠️ Incorrect password. Please try again.');
-    return;
+
   }
 
-  localStorage.setItem('facultyEmail', email);
-  localStorage.setItem('facultyProfile', JSON.stringify({ name: account.name, dept: account.dept }));
-  window.location.href = 'faculty-dashboard.html';
+  try {
+
+    await signInWithEmailAndPassword(
+      auth,
+      email,
+      password
+    );
+
+    const user = auth.currentUser;
+
+    const facultyDoc = await getDoc(
+      doc(db, "faculty", user.uid)
+    );
+
+    if (!facultyDoc.exists()) {
+
+      alert(
+        "Faculty profile not found."
+      );
+
+      await signOut(auth);
+
+      return;
+
+    }
+
+    if (!facultyDoc.data().approved) {
+
+      alert(
+        "Your account is waiting for institution approval."
+      );
+
+      await signOut(auth);
+
+      return;
+
+    }
+
+    alert("Login Successful");
+
+    window.location.href =
+      "faculty-dashboard.html";
+
+  }
+
+  catch (error) {
+
+    alert(error.message);
+
+  }
+
+
+
 }
 
+window.facultyLogin = facultyLogin;
+
 /* ── Institution Login ────────────────────────────── */
-function institutionLogin(){
-  const emailEl = $el('institutionEmail');
-  const passEl  = $el('institutionPassword');
-  if(!emailEl || !passEl) return;
+async function institutionLogin() {
 
-  const email    = emailEl.value.trim();
-  const password = passEl.value;
+  console.log("Institution login started");
 
-  if(!email || !password){
-    showAlert('loginAlert','error','⚠️ Please fill in all fields.');
+  const emailEl =
+    $el('institutionEmail');
+
+  const passEl =
+    $el('institutionPassword');
+
+  if (!emailEl || !passEl) return;
+
+  const email =
+    emailEl.value.trim();
+
+  const password =
+    passEl.value;
+
+  if (!email || !password) {
+
+    showAlert(
+      'loginAlert',
+      'error',
+      '⚠️ Please fill in all fields.'
+    );
+
     return;
-  }
-  if(!email.includes('@') || !email.includes('.')){
-    showAlert('loginAlert','error','⚠️ Please enter a valid email address.');
-    return;
+
   }
 
-  const account = findAccount('institution', email);
-  if(!account){
-    showAlert('loginAlert','error','⚠️ No account found. <a href="institution-register.html" style="color:#1d4ed8;font-weight:700;">Register Institution →</a>');
-    return;
-  }
-  if(account.password !== password){
-    showAlert('loginAlert','error','⚠️ Incorrect password.');
-    return;
+  try {
+
+    const userCredential =
+      await signInWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+
+    console.log(userCredential.user.uid);
+
+    const uid =
+      userCredential.user.uid;
+
+    const adminDoc =
+      await getDoc(
+        doc(db, "institution", uid)
+      );
+
+    if (!adminDoc.exists()) {
+
+      showAlert(
+        'loginAlert',
+        'error',
+        '⚠️ Access denied. You are not an institution administrator.'
+      );
+
+      return;
+
+    }
+
+    window.location.href =
+      'institution-dashboard.html';
+
   }
 
-  localStorage.setItem('institutionEmail', email);
-  localStorage.setItem('institutionName', account.name || nameFromEmail(email));
-  window.location.href = 'institution-dashboard.html';
+  catch (error) {
+
+    showAlert(
+      'loginAlert',
+      'error',
+      '⚠️ Invalid email or password.'
+    );
+
+  }
+
+}
+
+/* ── Profile ────────────────────────────────────────── */
+async function loadFacultyProfile() {
+
+  onAuthStateChanged(auth, async (user) => {
+
+    if (!user) {
+      window.location.href = "faculty-login.html";
+      return;
+    }
+
+    const facultyDoc = await getDoc(
+      doc(db, "faculty", user.uid)
+    );
+
+    if (!facultyDoc.exists()) {
+      alert("Faculty profile not found.");
+      return;
+    }
+
+    const profile = facultyDoc.data();
+
+    document.getElementById("profileName").textContent =
+      profile.name || "";
+
+    document.getElementById("profileEmail").textContent =
+      profile.email || "";
+
+    document.getElementById("editName").value =
+      profile.name || "";
+
+    document.getElementById("editEmail").value =
+      profile.email || "";
+
+    document.getElementById("editDept").value =
+      profile.department || "";
+
+    document.getElementById("editPhone").value =
+      profile.phone || "";
+
+  });
+
+}
+
+async function saveProfile() {
+
+  const name =
+    document.getElementById("editName").value.trim();
+
+  const dept =
+    document.getElementById("editDept").value.trim();
+
+  const phone =
+    document.getElementById("editPhone").value.trim();
+
+  const a =
+    document.getElementById("profileAlert");
+
+  const user = auth.currentUser;
+
+  if (!user) return;
+
+  if (!name) {
+
+    a.className = "alert alert-error";
+    a.textContent = "⚠️ Name is required.";
+    a.style.display = "flex";
+
+    return;
+
+  }
+
+  await updateDoc(
+    doc(db, "faculty", user.uid),
+    {
+      name: name,
+      department: dept,
+      phone: phone
+    }
+  );
+
+  document.getElementById("profileName").textContent =
+    name;
+
+  document.getElementById("profileEmail").textContent =
+    user.email;
+
+  a.className = "alert alert-success";
+  a.textContent = "✅ Profile updated successfully.";
+  a.style.display = "flex";
+
+  setTimeout(() => {
+    a.style.display = "none";
+  }, 3000);
+
+}
+
+async function changePassword() {
+
+  const curr =
+    document.getElementById("currPass").value;
+
+  const next =
+    document.getElementById("newPass").value;
+
+  const conf =
+    document.getElementById("confPass").value;
+
+  const a =
+    document.getElementById("profileAlert");
+
+  if (!curr || !next || !conf) {
+
+    a.className = "alert alert-error";
+    a.textContent =
+      "⚠️ All password fields are required.";
+    a.style.display = "flex";
+
+    return;
+
+  }
+
+  if (next.length < 8) {
+
+    a.className = "alert alert-error";
+    a.textContent =
+      "⚠️ New password must be at least 8 characters.";
+    a.style.display = "flex";
+
+    return;
+
+  }
+
+  if (next !== conf) {
+
+    a.className = "alert alert-error";
+    a.textContent =
+      "⚠️ New passwords do not match.";
+    a.style.display = "flex";
+
+    return;
+
+  }
+
+  document.getElementById("currPass").value = "";
+  document.getElementById("newPass").value = "";
+  document.getElementById("confPass").value = "";
+
+  a.className = "alert alert-success";
+  a.textContent =
+    "✅ Password validation successful.";
+  a.style.display = "flex";
+
+}
+
+/* ── Logout ────────────────────────────────────────── */
+async function logoutFaculty() {
+
+  await signOut(auth);
+
+  localStorage.clear();
+
+  window.location.href =
+    "faculty-login.html";
+
+}
+async function logoutInstitution() {
+
+  await signOut(auth);
+
+  localStorage.clear();
+
+  window.location.href =
+    "institution-login.html";
+
 }
 
 /* ── Institution Registration ─────────────────────── */
-function institutionRegister(){
-  const name     = ($el('regName')||{}).value?.trim();
-  const email    = ($el('regEmail')||{}).value?.trim();
-  const city     = ($el('regCity')||{}).value?.trim();
-  const password = ($el('regPassword')||{}).value;
-  const confirm  = ($el('regConfirm')||{}).value;
+function institutionRegister() {
+  const name = ($el('regName') || {}).value?.trim();
+  const email = ($el('regEmail') || {}).value?.trim();
+  const city = ($el('regCity') || {}).value?.trim();
+  const password = ($el('regPassword') || {}).value;
+  const confirm = ($el('regConfirm') || {}).value;
 
-  if(!name || !email || !password || !confirm){
-    showAlert('regAlert','error','⚠️ Please fill all required fields.');
+  if (!name || !email || !password || !confirm) {
+    showAlert('regAlert', 'error', '⚠️ Please fill all required fields.');
     return;
   }
-  if(!email.includes('@') || !email.includes('.')){
-    showAlert('regAlert','error','⚠️ Enter a valid email.');
+  if (!email.includes('@') || !email.includes('.')) {
+    showAlert('regAlert', 'error', '⚠️ Enter a valid email.');
     return;
   }
-  if(password.length < 6){
-    showAlert('regAlert','error','⚠️ Password must be at least 6 characters.');
+  if (password.length < 6) {
+    showAlert('regAlert', 'error', '⚠️ Password must be at least 6 characters.');
     return;
   }
-  if(password !== confirm){
-    showAlert('regAlert','error','⚠️ Passwords do not match.');
+  if (password !== confirm) {
+    showAlert('regAlert', 'error', '⚠️ Passwords do not match.');
     return;
   }
-  if(accountExists('institution', email)){
-    showAlert('regAlert','error','⚠️ An institution account already exists with this email.');
+  if (accountExists('institution', email)) {
+    showAlert('regAlert', 'error', '⚠️ An institution account already exists with this email.');
     return;
   }
 
   const accounts = getAccounts('institution');
-  accounts.push({ name, email, city: city||'', password, createdAt: formatDate() });
+  accounts.push({ name, email, city: city || '', password, createdAt: formatDate() });
   saveAccounts('institution', accounts);
 
-  showAlert('regAlert','success','✅ Institution registered! Redirecting to login...');
+  showAlert('regAlert', 'success', '✅ Institution registered! Redirecting to login...');
   setTimeout(() => window.location.href = 'institution-login.html', 1500);
 }
 
 /* ── Forgot Password — Send OTP ───────────────────── */
-function sendForgotOTP(role){
+function sendForgotOTP(role) {
   const emailEl = $el('forgotEmail');
-  if(!emailEl) return;
+  if (!emailEl) return;
   const email = emailEl.value.trim();
 
-  if(!email || !email.includes('@')){
-    showAlert('forgotAlert','error','⚠️ Enter a valid email address.');
+  if (!email || !email.includes('@')) {
+    showAlert('forgotAlert', 'error', '⚠️ Enter a valid email address.');
     return;
   }
 
   const account = findAccount(role, email);
-  if(!account){
-    showAlert('forgotAlert','error','⚠️ No account found with this email.');
+  if (!account) {
+    showAlert('forgotAlert', 'error', '⚠️ No account found with this email.');
     return;
   }
 
@@ -243,46 +552,46 @@ function sendForgotOTP(role){
   localStorage.setItem('forgotEmail_' + role, email);
 
   // Simulate OTP display (in real app this would be emailed)
-  showAlert('forgotAlert','success',
+  showAlert('forgotAlert', 'success',
     `✅ OTP generated! <br><strong style="font-size:22px;color:#1d4ed8;letter-spacing:4px;">${otp}</strong><br>
     <span style="font-size:12px;color:#64748b;">(In a real system, this would be sent to your email)</span>`
   );
 
   // Show OTP step
   const step2 = $el('otpStep');
-  if(step2) step2.style.display = 'block';
+  if (step2) step2.style.display = 'block';
   const step1btn = $el('sendOtpBtn');
-  if(step1btn) step1btn.disabled = true;
+  if (step1btn) step1btn.disabled = true;
 }
 
 /* ── Forgot Password — Verify & Reset ─────────────── */
-function verifyOTPAndReset(role){
-  const email    = localStorage.getItem('forgotEmail_' + role) || '';
-  const inputOtp = ($el('otpInput')||{}).value?.trim();
-  const newPass  = ($el('newPassword')||{}).value;
-  const confPass = ($el('confirmPassword')||{}).value;
+function verifyOTPAndReset(role) {
+  const email = localStorage.getItem('forgotEmail_' + role) || '';
+  const inputOtp = ($el('otpInput') || {}).value?.trim();
+  const newPass = ($el('newPassword') || {}).value;
+  const confPass = ($el('confirmPassword') || {}).value;
 
-  if(!inputOtp || !newPass || !confPass){
-    showAlert('forgotAlert','error','⚠️ Please fill all fields.');
+  if (!inputOtp || !newPass || !confPass) {
+    showAlert('forgotAlert', 'error', '⚠️ Please fill all fields.');
     return;
   }
-  if(!verifyOTP(email, inputOtp)){
-    showAlert('forgotAlert','error','⚠️ Invalid or expired OTP. Please try again.');
+  if (!verifyOTP(email, inputOtp)) {
+    showAlert('forgotAlert', 'error', '⚠️ Invalid or expired OTP. Please try again.');
     return;
   }
-  if(newPass.length < 6){
-    showAlert('forgotAlert','error','⚠️ Password must be at least 6 characters.');
+  if (newPass.length < 6) {
+    showAlert('forgotAlert', 'error', '⚠️ Password must be at least 6 characters.');
     return;
   }
-  if(newPass !== confPass){
-    showAlert('forgotAlert','error','⚠️ Passwords do not match.');
+  if (newPass !== confPass) {
+    showAlert('forgotAlert', 'error', '⚠️ Passwords do not match.');
     return;
   }
 
   // Update password
   const accounts = getAccounts(role);
   const idx = accounts.findIndex(a => a.email.toLowerCase() === email.toLowerCase());
-  if(idx !== -1){
+  if (idx !== -1) {
     accounts[idx].password = newPass;
     saveAccounts(role, accounts);
   }
@@ -290,35 +599,53 @@ function verifyOTPAndReset(role){
   clearOTP(email);
   localStorage.removeItem('forgotEmail_' + role);
 
-  showAlert('forgotAlert','success','✅ Password reset successfully! Redirecting to login...');
+  showAlert('forgotAlert', 'success', '✅ Password reset successfully! Redirecting to login...');
   const loginPage = role === 'faculty' ? 'faculty-login.html' : 'institution-login.html';
   setTimeout(() => window.location.href = loginPage, 2000);
 }
 
 /* ── Faculty Dashboard ────────────────────────────── */
-function initFacultyDashboard(){
-  if(!guardFaculty()) return;
-  const email   = localStorage.getItem('facultyEmail') || '';
-  const profile = JSON.parse(localStorage.getItem('facultyProfile') || '{}');
-  const name    = profile.name || nameFromEmail(email);
+async function initFacultyDashboard() {
+
+  const user = auth.currentUser;
+
+  if (!user) {
+    window.location.href = 'faculty-login.html';
+    return;
+  }
+
+  const email = user.email;
+  const name = email.split('@')[0];
 
   const wMsg = $el('welcomeMsg');
-  if(wMsg) wMsg.textContent = 'Welcome back, ' + name + '. Manage marks, subjects and student records.';
+  if (wMsg) wMsg.textContent = 'Welcome back, ' + name + '. Manage marks, subjects and student records.';
 
-  const allRecords = JSON.parse(localStorage.getItem('uploadedRecords') || '[]');
-  const students   = [...new Set(allRecords.map(r => r.rollNo))];
-  const subjects   = [...new Set(allRecords.map(r => r.subject))];
+  const q = query(
+    collection(db, "records"),
+    where("facultyId", "==", user.uid)
+  );
+
+  const snapshot = await getDocs(q);
+
+  const allRecords = [];
+
+  snapshot.forEach((doc) => {
+    allRecords.push(doc.data());
+  });
+
+  const students = [...new Set(allRecords.map(r => r.rollNo))];
+  const subjects = [...new Set(allRecords.map(r => r.subject))];
 
   setText('statStudents', students.length);
   setText('statSubjects', subjects.length);
-  setText('statRecords',  allRecords.length);
-  setText('statPending',  0);
+  setText('statRecords', allRecords.length);
+  setText('statPending', 0);
 
   const recentUploads = $el('recentUploads');
-  if(!recentUploads) return;
+  if (!recentUploads) return;
 
   const uploads = JSON.parse(localStorage.getItem('uploadHistory') || '[]');
-  if(uploads.length === 0){
+  if (uploads.length === 0) {
     recentUploads.innerHTML = `<div class="empty-state card">
       <div class="empty-icon">📭</div>
       <h3>No uploads yet</h3>
@@ -331,35 +658,55 @@ function initFacultyDashboard(){
   let html = `<div class="table-wrap"><table>
     <thead><tr><th>Subject</th><th>Batch</th><th>Type</th><th>Records</th><th>Uploaded On</th></tr></thead><tbody>`;
   uploads.slice().reverse().forEach(u => {
-    html += `<tr><td>${u.subject}</td><td>${u.batch}</td><td>${u.examType||'Theory'}</td><td>${u.count}</td><td>${u.date}</td></tr>`;
+    html += `<tr><td>${u.subject}</td><td>${u.batch}</td><td>${u.examType || 'Theory'}</td><td>${u.count}</td><td>${u.date}</td></tr>`;
   });
   html += `</tbody></table></div>`;
   recentUploads.innerHTML = html;
 }
 
 /* ── Institution Dashboard ────────────────────────── */
-function initInstitutionDashboard(){
-  if(!guardInstitution()) return;
-  const email = localStorage.getItem('institutionEmail') || '';
-  const name  = localStorage.getItem('institutionName') || nameFromEmail(email);
+async function initInstitutionDashboard() {
 
+  const user = auth.currentUser;
+
+  if (!user) {
+
+    window.location.href =
+      "institution-login.html";
+
+    return;
+
+  }
+
+  const email = user.email;
+  const name = email.split("@")[0];
   const wMsg = $el('instWelcome');
-  if(wMsg) wMsg.textContent = 'Welcome, ' + name + '. Manage faculty uploads and generate final grades.';
+  if (wMsg) wMsg.textContent = 'Welcome, ' + name + '. Manage faculty uploads and generate final grades.';
 
-  const allRecords = JSON.parse(localStorage.getItem('uploadedRecords') || '[]');
-  const students   = [...new Set(allRecords.map(r => r.rollNo))];
-  const subjects   = [...new Set(allRecords.map(r => r.subject))];
-  const batches    = [...new Set(allRecords.map(r => r.batch))];
+  const snapshot = await getDocs(
+    collection(db, "records")
+  );
+
+  const allRecords = [];
+
+  snapshot.forEach((doc) => {
+
+    allRecords.push(doc.data());
+
+  });
+  const students = [...new Set(allRecords.map(r => r.rollNo))];
+  const subjects = [...new Set(allRecords.map(r => r.subject))];
+  const batches = [...new Set(allRecords.map(r => r.batch))];
 
   setText('iStatStudents', students.length);
   setText('iStatSubjects', subjects.length);
-  setText('iStatRecords',  allRecords.length);
-  setText('iStatBatches',  batches.length);
+  setText('iStatRecords', allRecords.length);
+  setText('iStatBatches', batches.length);
 
   const container = $el('subjectSummaryContainer');
-  if(!container) return;
+  if (!container) return;
 
-  if(allRecords.length === 0){
+  if (allRecords.length === 0) {
     container.innerHTML = `<div class="empty-state card">
       <div class="empty-icon">📭</div>
       <h3>No records yet</h3>
@@ -370,7 +717,7 @@ function initInstitutionDashboard(){
 
   const subjectMap = {};
   allRecords.forEach(r => {
-    if(!subjectMap[r.subject]) subjectMap[r.subject] = { students: new Set(), batches: new Set(), marks: [] };
+    if (!subjectMap[r.subject]) subjectMap[r.subject] = { students: new Set(), batches: new Set(), marks: [] };
     subjectMap[r.subject].students.add(r.rollNo);
     subjectMap[r.subject].batches.add(r.batch);
     subjectMap[r.subject].marks.push(Number(r.theoryTotal || r.marks) || 0);
@@ -379,7 +726,7 @@ function initInstitutionDashboard(){
   let html = `<div class="table-wrap"><table>
     <thead><tr><th>Subject</th><th>Students</th><th>Batches</th><th>Avg Marks</th><th>Highest</th><th>Lowest</th></tr></thead><tbody>`;
   Object.entries(subjectMap).forEach(([subject, data]) => {
-    const avg = (data.marks.reduce((a,b)=>a+b,0)/data.marks.length).toFixed(1);
+    const avg = (data.marks.reduce((a, b) => a + b, 0) / data.marks.length).toFixed(1);
     html += `<tr>
       <td><strong>${subject}</strong></td>
       <td>${data.students.size}</td>
@@ -394,23 +741,23 @@ function initInstitutionDashboard(){
 }
 
 /* ── Navbar Dropdown ──────────────────────────────── */
-function initDropdown(){
-  const loginBtn     = $el('loginBtn');
+function initDropdown() {
+  const loginBtn = $el('loginBtn');
   const dropdownMenu = $el('dropdownMenu');
   const heroLoginBtn = $el('heroLoginBtn');
 
-  if(loginBtn && dropdownMenu){
+  if (loginBtn && dropdownMenu) {
     loginBtn.addEventListener('click', e => {
       e.preventDefault();
       dropdownMenu.classList.toggle('show');
     });
     document.addEventListener('click', e => {
-      if(!loginBtn.contains(e.target) && !dropdownMenu.contains(e.target)){
+      if (!loginBtn.contains(e.target) && !dropdownMenu.contains(e.target)) {
         dropdownMenu.classList.remove('show');
       }
     });
   }
-  if(heroLoginBtn && dropdownMenu){
+  if (heroLoginBtn && dropdownMenu) {
     heroLoginBtn.addEventListener('click', () => {
       dropdownMenu.classList.add('show');
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -423,9 +770,9 @@ function initDropdown(){
 // Practical: LabManual(10) + LabAssessment(10) + Viva(30) + EndPractical(50) = 100
 // Final = Theory(60%) + Practical(40%)
 
-function addSubject(){
+function addSubject() {
   const container = $el('subjectsContainer');
-  if(!container) return;
+  if (!container) return;
   const card = document.createElement('div');
   card.className = 'subject-card';
   card.innerHTML = buildSubjectCardHTML(true);
@@ -433,7 +780,7 @@ function addSubject(){
   updateExamTypeVisibility(card.querySelector('.examTypeSelect'));
 }
 
-function buildSubjectCardHTML(removable){
+function buildSubjectCardHTML(removable) {
   return `
     ${removable ? `<div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
       <button onclick="this.closest('.subject-card').remove()" style="width:auto;padding:6px 14px;font-size:13px;background:linear-gradient(to right,#dc2626,#b91c1c);">✕ Remove</button>
@@ -451,9 +798,9 @@ function buildSubjectCardHTML(removable){
     <div>
       <label>Exam Type</label>
       <select class="examTypeSelect" onchange="updateExamTypeVisibility(this)" style="margin-bottom:14px;">
-        <option value="theory">Theory Only (60%)</option>
-        <option value="practical">Practical Only (40%)</option>
-        <option value="both">Theory + Practical</option>
+        <option value="theory">Theory Subject</option>
+        <option value="practical">Practical Subject</option>
+        <option value="both">Theory + Practical Subject</option>
       </select>
     </div>
     <div class="theory-section">
@@ -499,33 +846,33 @@ function buildSubjectCardHTML(removable){
   `;
 }
 
-function updateExamTypeVisibility(selectEl){
+function updateExamTypeVisibility(selectEl) {
   const card = selectEl.closest('.subject-card');
   const theorySection = card.querySelector('.theory-section');
   const practicalSection = card.querySelector('.practical-section');
   const val = selectEl.value;
-  theorySection.style.display    = (val === 'practical') ? 'none' : 'block';
-  practicalSection.style.display = (val === 'theory')    ? 'none' : 'block';
+  theorySection.style.display = (val === 'practical') ? 'none' : 'block';
+  practicalSection.style.display = (val === 'theory') ? 'none' : 'block';
 }
 
-function getNum(el){ return Math.max(0, Number(el?.value) || 0); }
+function getNum(el) { return Math.max(0, Number(el?.value) || 0); }
 
-function calculateSGPA(){
+function calculateSGPA() {
   const cards = document.querySelectorAll('.subject-card');
-  if(cards.length === 0){ alert('Please add at least one subject.'); return; }
+  if (cards.length === 0) { alert('Please add at least one subject.'); return; }
 
   let totalCreditPoints = 0;
   let totalCredits = 0;
   let breakdown = [];
 
-  for(const card of cards){
+  for (const card of cards) {
     const c = Number(card.querySelector('.credits')?.value);
-    if(!c || c <= 0){ alert('Please enter valid credits for all subjects.'); return; }
+    if (!c || c <= 0) { alert('Please enter valid credits for all subjects.'); return; }
 
     const type = card.querySelector('.examTypeSelect')?.value || 'theory';
     let finalMark = 0;
 
-    const ca  = getNum(card.querySelector('.ca'));
+    const ca = getNum(card.querySelector('.ca'));
     const mid = getNum(card.querySelector('.midterm'));
     const end = getNum(card.querySelector('.endterm'));
     const theoryTotal = ca + mid + end; // max 100
@@ -536,8 +883,8 @@ function calculateSGPA(){
     const endP = getNum(card.querySelector('.endPractical'));
     const practicalTotal = labM + labA + viva + endP; // max 100
 
-    if(type === 'theory')     finalMark = theoryTotal;
-    else if(type === 'practical') finalMark = practicalTotal;
+    if (type === 'theory') finalMark = theoryTotal;
+    else if (type === 'practical') finalMark = practicalTotal;
     else finalMark = (theoryTotal * 0.6) + (practicalTotal * 0.4); // combined
 
     const gp = marksToGP(finalMark);
@@ -550,10 +897,10 @@ function calculateSGPA(){
 
   const sgpa = (totalCreditPoints / totalCredits).toFixed(2);
   const result = $el('totalMarks');
-  if(result) result.textContent = sgpa;
+  if (result) result.textContent = sgpa;
 
   const label = $el('sgpaLabel');
-  if(label){
+  if (label) {
     const s = parseFloat(sgpa);
     let lbl = s >= 9 ? '🏆 Outstanding' : s >= 8 ? '⭐ Excellent' : s >= 7 ? '✅ Good' : s >= 6 ? '🔵 Average' : '⚠️ Below Average';
     label.textContent = lbl;
@@ -562,7 +909,7 @@ function calculateSGPA(){
 
   // Breakdown table
   const bkEl = $el('breakdownTable');
-  if(bkEl){
+  if (bkEl) {
     let html = `<div class="table-wrap" style="margin-top:24px;"><table>
       <thead><tr><th>Subject</th><th>Type</th><th>Final Mark</th><th>Grade Point</th><th>Credits</th><th>Credit Points</th></tr></thead><tbody>`;
     breakdown.forEach(b => {
@@ -581,61 +928,61 @@ function calculateSGPA(){
   }
 }
 
-function marksToGP(marks){
-  if(marks >= 90) return 10;
-  if(marks >= 80) return 9;
-  if(marks >= 70) return 8;
-  if(marks >= 60) return 7;
-  if(marks >= 50) return 6;
-  if(marks >= 40) return 5;
+function marksToGP(marks) {
+  if (marks >= 90) return 10;
+  if (marks >= 80) return 9;
+  if (marks >= 70) return 8;
+  if (marks >= 60) return 7;
+  if (marks >= 50) return 6;
+  if (marks >= 40) return 5;
   return 0;
 }
 
-function gpToGrade(gp){
-  if(gp === 10) return 'O';
-  if(gp === 9)  return 'A+';
-  if(gp === 8)  return 'A';
-  if(gp === 7)  return 'B+';
-  if(gp === 6)  return 'B';
-  if(gp === 5)  return 'C';
+function gpToGrade(gp) {
+  if (gp === 10) return 'O';
+  if (gp === 9) return 'A+';
+  if (gp === 8) return 'A';
+  if (gp === 7) return 'B+';
+  if (gp === 6) return 'B';
+  if (gp === 5) return 'C';
   return 'F';
 }
 
 /* ── Excel Upload ─────────────────────────────────── */
 let uploadedData = [];
 
-function readExcelFile(){
+function readExcelFile() {
   const subjectName = $el('subjectName')?.value.trim();
-  const batchName   = $el('batchName')?.value.trim();
-  const examType    = $el('examTypeUpload')?.value || 'theory';
-  const fileInput   = $el('fileInput');
-  const file        = fileInput?.files?.[0];
+  const batchName = $el('batchName')?.value.trim();
+  const examType = $el('examTypeUpload')?.value || 'theory';
+  const fileInput = $el('fileInput');
+  const file = fileInput?.files?.[0];
 
-  if(!subjectName){ showAlert('uploadAlert','error','⚠️ Please enter a subject name.'); return; }
-  if(!batchName)  { showAlert('uploadAlert','error','⚠️ Please enter a batch name.'); return; }
-  if(!file)       { showAlert('uploadAlert','error','⚠️ Please select a file.'); return; }
-  if(typeof XLSX === 'undefined'){ showAlert('uploadAlert','error','⚠️ Excel library not loaded.'); return; }
+  if (!subjectName) { showAlert('uploadAlert', 'error', '⚠️ Please enter a subject name.'); return; }
+  if (!batchName) { showAlert('uploadAlert', 'error', '⚠️ Please enter a batch name.'); return; }
+  if (!file) { showAlert('uploadAlert', 'error', '⚠️ Please select a file.'); return; }
+  if (typeof XLSX === 'undefined') { showAlert('uploadAlert', 'error', '⚠️ Excel library not loaded.'); return; }
 
   const reader = new FileReader();
-  reader.onload = function(e){
+  reader.onload = function (e) {
     try {
-      const data  = new Uint8Array(e.target.result);
-      const wb    = XLSX.read(data, { type:'array' });
+      const data = new Uint8Array(e.target.result);
+      const wb = XLSX.read(data, { type: 'array' });
       const sheet = wb.Sheets[wb.SheetNames[0]];
       uploadedData = XLSX.utils.sheet_to_json(sheet);
-      if(uploadedData.length === 0){ showAlert('uploadAlert','error','⚠️ File is empty.'); return; }
+      if (uploadedData.length === 0) { showAlert('uploadAlert', 'error', '⚠️ File is empty.'); return; }
       showPreview(examType);
-      showAlert('uploadAlert','success','✅ File loaded! Review the preview below.');
-    } catch(err){
-      showAlert('uploadAlert','error','⚠️ Could not read file.');
+      showAlert('uploadAlert', 'success', '✅ File loaded! Review the preview below.');
+    } catch (err) {
+      showAlert('uploadAlert', 'error', '⚠️ Could not read file.');
     }
   };
-  reader.onerror = () => showAlert('uploadAlert','error','⚠️ File read error.');
+  reader.onerror = () => showAlert('uploadAlert', 'error', '⚠️ File read error.');
   reader.readAsArrayBuffer(file);
 }
 
-function showPreview(examType){
-  if(!uploadedData.length) return;
+function showPreview(examType) {
+  if (!uploadedData.length) return;
   const keys = Object.keys(uploadedData[0]);
   let html = `<div class="table-wrap"><table><thead><tr>`;
   keys.forEach(k => html += `<th>${k}</th>`);
@@ -645,55 +992,58 @@ function showPreview(examType){
     keys.forEach(k => html += `<td>${row[k] !== undefined ? row[k] : ''}</td>`);
     html += `</tr>`;
   });
-  if(uploadedData.length > 50){
+  if (uploadedData.length > 50) {
     html += `<tr><td colspan="${keys.length}" style="text-align:center;color:#64748b;">... and ${uploadedData.length - 50} more rows</td></tr>`;
   }
   html += `</tbody></table></div>`;
   $el('tableContainer').innerHTML = html;
   $el('previewSection').style.display = 'block';
   const rc = $el('recordCount');
-  if(rc) rc.textContent = uploadedData.length + ' record(s) ready to save.';
-  $el('previewSection').scrollIntoView({ behavior:'smooth' });
+  if (rc) rc.textContent = uploadedData.length + ' record(s) ready to save.';
+  $el('previewSection').scrollIntoView({ behavior: 'smooth' });
 }
 
-function saveRecords(){
-  if(!uploadedData.length){ showAlert('uploadAlert','error','⚠️ No data to save.'); return; }
+async function saveRecords() {
+  if (!uploadedData.length) { showAlert('uploadAlert', 'error', '⚠️ No data to save.'); return; }
 
-  const subjectName  = $el('subjectName')?.value.trim()  || 'Unknown';
-  const subjectCode  = $el('subjectCode')?.value.trim()  || '';
-  const batchName    = $el('batchName')?.value.trim()    || 'Unknown';
-  const semester     = $el('semesterInput')?.value.trim()|| '';
+  const credits = Number($el('subjectCredits')?.value) || 0;
+  const subjectName = $el('subjectName')?.value.trim() || 'Unknown';
+  const subjectCode = $el('subjectCode')?.value.trim() || '';
+  const batchName = $el('batchName')?.value.trim() || 'Unknown';
+  const semester = $el('semesterInput')?.value.trim() || '';
   const academicYear = $el('academicYear')?.value.trim() || '';
-  const examType     = $el('examTypeUpload')?.value      || 'theory';
+  const examType = $el('examTypeUpload')?.value || 'theory';
 
+  const facultyId = auth.currentUser.uid;
+  const facultyEmail = auth.currentUser.email;
   const enriched = uploadedData.map(row => {
     const get = (...keys) => {
-      for(const k of keys){
+      for (const k of keys) {
         const v = row[k];
-        if(v !== undefined && v !== null && v !== '') return v;
+        if (v !== undefined && v !== null && v !== '') return v;
       }
       return null;
     };
 
-    const rollNo = String(get('rollNo','Roll No','ROLL NO','RollNo','roll_no') || '—');
-    const name   = String(get('name','Name','Student Name','STUDENT NAME') || '—');
+    const rollNo = String(get('rollNo', 'Roll No', 'ROLL NO', 'RollNo', 'roll_no') || '—');
+    const name = String(get('name', 'Name', 'Student Name', 'STUDENT NAME') || '—');
 
     // Theory marks
-    const ca         = Number(get('ca','CA','Continuous Assessment','ContinuousAssessment') || 0);
-    const midsem     = Number(get('midsem','Midsem','midterm','Midterm','Mid Term') || 0);
-    const endsem     = Number(get('endsem','Endsem','endterm','End Term','EndTerm') || 0);
-    const theoryTotal = ca + midsem + endsem || Number(get('marks','Marks','MARKS','Total') || 0);
+    const ca = Number(get('ca', 'CA', 'Continuous Assessment', 'ContinuousAssessment') || 0);
+    const midsem = Number(get('midsem', 'Midsem', 'midterm', 'Midterm', 'Mid Term') || 0);
+    const endsem = Number(get('endsem', 'Endsem', 'endterm', 'End Term', 'EndTerm') || 0);
+    const theoryTotal = ca + midsem + endsem || Number(get('marks', 'Marks', 'MARKS', 'Total') || 0);
 
     // Practical marks
-    const labManual    = Number(get('labManual','Lab Manual','LabManual') || 0);
-    const labAssessment= Number(get('labAssessment','Lab Assessment','LabAssessment') || 0);
-    const viva         = Number(get('viva','Viva','Viva-voce','InternalViva') || 0);
-    const endPractical = Number(get('endPractical','End Practical','EndPractical','EndSem Practical') || 0);
+    const labManual = Number(get('labManual', 'Lab Manual', 'LabManual') || 0);
+    const labAssessment = Number(get('labAssessment', 'Lab Assessment', 'LabAssessment') || 0);
+    const viva = Number(get('viva', 'Viva', 'Viva-voce', 'InternalViva') || 0);
+    const endPractical = Number(get('endPractical', 'End Practical', 'EndPractical', 'EndSem Practical') || 0);
     const practicalTotal = labManual + labAssessment + viva + endPractical;
 
     let finalMarks;
-    if(examType === 'theory') finalMarks = theoryTotal;
-    else if(examType === 'practical') finalMarks = practicalTotal;
+    if (examType === 'theory') finalMarks = theoryTotal;
+    else if (examType === 'practical') finalMarks = practicalTotal;
     else finalMarks = (theoryTotal * 0.6) + (practicalTotal * 0.4);
 
     return {
@@ -703,60 +1053,848 @@ function saveRecords(){
       marks: Math.round(finalMarks * 10) / 10,
       maxMarks: 100,
       examType,
-      subject: subjectName, subjectCode, batch: batchName,
-      semester, academicYear, uploadedOn: formatDate()
+      subject: subjectName,
+      subjectCode,
+      credits,
+      batch: batchName,
+      semester,
+      academicYear,
+      uploadedOn: formatDate(),
+
+      facultyId,
+      facultyEmail
     };
   });
 
-  const existing = JSON.parse(localStorage.getItem('uploadedRecords') || '[]');
-  localStorage.setItem('uploadedRecords', JSON.stringify(existing.concat(enriched)));
+  for (const record of enriched) {
+
+    await addDoc(
+      collection(db, "records"),
+      {
+        ...record,
+        facultyId: auth.currentUser.uid,
+        facultyEmail: auth.currentUser.email
+      }
+    );
+
+  }
 
   const history = JSON.parse(localStorage.getItem('uploadHistory') || '[]');
   history.push({ subject: subjectName, batch: batchName, examType, count: enriched.length, date: formatDate() });
   localStorage.setItem('uploadHistory', JSON.stringify(history));
 
-  showAlert('uploadAlert','success','✅ ' + enriched.length + ' records saved successfully!');
+  showAlert('uploadAlert', 'success', '✅ ' + enriched.length + ' records saved successfully!');
   clearPreview();
 }
 
-function clearPreview(){
+function clearPreview() {
   uploadedData = [];
   const ps = $el('previewSection');
-  if(ps) ps.style.display = 'none';
+  if (ps) ps.style.display = 'none';
 }
 
 /* ── Export All Results ───────────────────────────── */
-function exportAllResults(){
+function exportAllResults() {
   const records = JSON.parse(localStorage.getItem('uploadedRecords') || '[]');
-  if(!records.length){ alert('No records to export.'); return; }
-  const headers = ['Roll No','Name','Subject','Batch','Exam Type','CA','Midsem','Endsem','Theory Total','Lab Manual','Lab Assess','Viva','End Practical','Practical Total','Final Marks','Academic Year','Uploaded On'];
-  const rows = records.map(r => [r.rollNo,r.name,r.subject,r.batch,r.examType||'theory',
-    r.ca||0,r.midsem||0,r.endsem||0,r.theoryTotal||r.marks,
-    r.labManual||0,r.labAssessment||0,r.viva||0,r.endPractical||0,r.practicalTotal||0,
-    r.marks,r.academicYear||'—',r.uploadedOn||'—']);
-  downloadCSV([headers,...rows], 'UniGrade_AllResults.csv');
+  if (!records.length) { alert('No records to export.'); return; }
+  const headers = ['Roll No', 'Name', 'Subject', 'Batch', 'Exam Type', 'CA', 'Midsem', 'Endsem', 'Theory Total', 'Lab Manual', 'Lab Assess', 'Viva', 'End Practical', 'Practical Total', 'Final Marks', 'Academic Year', 'Uploaded On'];
+  const rows = records.map(r => [r.rollNo, r.name, r.subject, r.batch, r.examType || 'theory',
+  r.ca || 0, r.midsem || 0, r.endsem || 0, r.theoryTotal || r.marks,
+  r.labManual || 0, r.labAssessment || 0, r.viva || 0, r.endPractical || 0, r.practicalTotal || 0,
+  r.marks, r.academicYear || '—', r.uploadedOn || '—']);
+  downloadCSV([headers, ...rows], 'UniGrade_AllResults.csv');
 }
 
-function downloadCSV(rows, filename){
-  const csv  = rows.map(r => r.map(v => '"' + String(v||'').replace(/"/g,'""') + '"').join(',')).join('\n');
-  const blob = new Blob([csv], { type:'text/csv' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
+function downloadCSV(rows, filename) {
+  const csv = rows.map(r => r.map(v => '"' + String(v || '').replace(/"/g, '""') + '"').join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
   a.href = url; a.download = filename; a.click();
   URL.revokeObjectURL(url);
 }
 
 /* ── DOMContentLoaded Router ─────────────────────── */
-document.addEventListener('DOMContentLoaded', function(){
-  const page = location.pathname.split('/').pop() || 'index.html';
-  initDropdown();
-  if(page === 'faculty-dashboard.html')     initFacultyDashboard();
-  if(page === 'institution-dashboard.html') initInstitutionDashboard();
+document.addEventListener('DOMContentLoaded', () => {
 
-  // Initialize first subject card in SGPA calculator
-  const firstCard = document.querySelector('.subject-card');
-  if(firstCard){
-    const sel = firstCard.querySelector('.examTypeSelect');
-    if(sel) updateExamTypeVisibility(sel);
+  const page =
+    location.pathname.split('/').pop()
+    || 'index.html';
+
+  initDropdown();
+
+  if (page === 'relative-grading.html') {
+
+    initRelativeGrading();
+
   }
+
+  if (page === 'profile.html') {
+
+    loadFacultyProfile();
+
+  }
+
+  if (page === 'faculty-dashboard.html') {
+
+    onAuthStateChanged(auth, (user) => {
+
+      if (!user) {
+
+        window.location.href =
+          'faculty-login.html';
+
+        return;
+
+      }
+
+      initFacultyDashboard();
+
+    });
+
+  }
+
+  if (page === 'institution-dashboard.html') {
+
+    onAuthStateChanged(auth, async (user) => {
+
+      if (!user) {
+
+        window.location.href =
+          'institution-login.html';
+
+        return;
+
+      }
+
+      const adminDoc =
+        await getDoc(
+          doc(db, "institution", user.uid)
+        );
+
+      if (!adminDoc.exists()) {
+
+        window.location.href =
+          'institution-login.html';
+
+        return;
+
+      }
+
+      initInstitutionDashboard();
+
+    });
+
+  }
+
+  if (page === 'student-records.html') {
+
+    onAuthStateChanged(auth, (user) => {
+
+      if (!user) {
+
+        window.location.href =
+          'faculty-login.html';
+
+        return;
+
+      }
+
+      loadRecords(user);
+
+    });
+
+  }
+
+  if (page === 'institution-records.html') {
+
+    onAuthStateChanged(auth, (user) => {
+
+      if (!user) {
+
+        window.location.href =
+          'institution-login.html';
+
+        return;
+
+      }
+
+      loadInstitutionRecords();
+
+    });
+
+  }
+
+
+
+  const firstCard =
+    document.querySelector('.subject-card');
+
+  if (firstCard) {
+
+    const sel =
+      firstCard.querySelector('.examTypeSelect');
+
+    if (sel)
+      updateExamTypeVisibility(sel);
+
+  }
+
 });
+
+/* ── Student Records Management (Faculty) ─────────── */
+
+let records = [];
+let gradedResults = [];
+
+async function initRelativeGrading() {
+
+  const snapshot = await getDocs(
+    collection(db, "records")
+  );
+
+  records = [];
+
+  snapshot.forEach((doc) => {
+
+    records.push(doc.data());
+
+  });
+
+  if (records.length === 0) {
+
+    document.getElementById(
+      'noDataMsg'
+    ).style.display = 'block';
+
+    return;
+
+  }
+
+  const subjects = [
+    ...new Set(records.map(r => r.subject))
+  ];
+
+  const batches = [
+    ...new Set(records.map(r => r.batch))
+  ];
+
+  const sf =
+    document.getElementById(
+      'gradingSubject'
+    );
+
+  const bf =
+    document.getElementById(
+      'gradingBatch'
+    );
+
+  subjects.forEach(s => {
+
+    const o =
+      document.createElement('option');
+
+    o.value = s;
+    o.textContent = s;
+
+    sf.appendChild(o);
+
+  });
+
+  batches.forEach(b => {
+
+    const o =
+      document.createElement('option');
+
+    o.value = b;
+    o.textContent = b;
+
+    bf.appendChild(o);
+
+  });
+
+}
+
+function generateGrades() {
+  const subjFilter = document.getElementById('gradingSubject').value;
+  const batchFilter = document.getElementById('gradingBatch').value;
+
+  let filtered = records;
+  if (subjFilter !== 'all') filtered = filtered.filter(r => r.subject === subjFilter);
+  if (batchFilter !== 'all') filtered = filtered.filter(r => r.batch === batchFilter);
+
+  if (filtered.length === 0) {
+    alert('No records match the selected filters.'); return;
+  }
+
+  // If all subjects combined, compute total marks per student
+  let dataForGrading = [];
+
+  if (subjFilter === 'all') {
+    // Group by student, sum marks
+    const studentMap = {};
+    filtered.forEach(r => {
+      if (!studentMap[r.rollNo]) studentMap[r.rollNo] = { rollNo: r.rollNo, name: r.name, batch: r.batch, totalMarks: 0, subjectCount: 0, subjects: [] };
+      studentMap[r.rollNo].totalMarks += Number(r.marks) || 0;
+      studentMap[r.rollNo].subjectCount += 1;
+      studentMap[r.rollNo].subjects.push(r.subject);
+    });
+    dataForGrading = Object.values(studentMap).map(s => ({ ...s, marks: s.totalMarks / s.subjectCount }));
+  } else {
+    dataForGrading = filtered.map(r => ({
+      rollNo: r.rollNo,
+      name: r.name,
+      batch: r.batch,
+      marks: Number(r.marks) || 0,
+      credits: Number(r.credits) || 0,
+      subjects: [r.subject]
+    }));
+
+    // Compute mean and SD
+    const markValues = dataForGrading.map(d => d.marks);
+    const mean = markValues.reduce((a, b) => a + b, 0) / markValues.length;
+    const variance = markValues.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / markValues.length;
+    const sd = Math.sqrt(variance);
+
+    // Assign grades
+    gradedResults = dataForGrading.map(d => {
+
+      const z = (d.marks - mean) / sd;
+
+      let grade;
+
+      if (z >= 1.5) grade = 'A+';
+      else if (z >= 0.5) grade = 'A';
+      else if (z >= -0.5) grade = 'B+';
+      else if (z >= -1.5) grade = 'B';
+      else if (z >= -2.5) grade = 'C';
+      else grade = 'F';
+
+      let gp;
+
+      if (grade === 'A+') gp = 10;
+      else if (grade === 'A') gp = 9;
+      else if (grade === 'B+') gp = 8;
+      else if (grade === 'B') gp = 7;
+      else if (grade === 'C') gp = 5;
+      else gp = 0;
+
+      const credits = Number(d.credits) || 0;
+
+      const creditPoints =
+        gp * credits;
+
+      return {
+
+        ...d,
+
+        grade,
+
+        gradePoint: gp,
+
+        credits,
+
+        creditPoints,
+
+        zScore: z.toFixed(2)
+
+      };
+
+    });
+
+    // Sort by marks desc
+    gradedResults.sort((a, b) => b.marks - a.marks);
+
+    // Save
+    localStorage.setItem('relativeGrades', JSON.stringify(gradedResults));
+
+    // Show stats
+    const gradeCounts = { 'A+': 0, 'A': 0, 'B+': 0, 'B': 0, 'C': 0, 'F': 0 };
+    gradedResults.forEach(r => gradeCounts[r.grade]++);
+    const highest = Math.max(...markValues).toFixed(1);
+    const lowest = Math.min(...markValues).toFixed(1);
+
+    document.getElementById('statsSection').style.display = 'block';
+    document.getElementById('statsGrid').innerHTML = `
+                <div class="stat-card"><h2>${mean.toFixed(1)}</h2><p>Class Mean</p></div>
+                <div class="stat-card"><h2>${sd.toFixed(1)}</h2><p>Std Deviation</p></div>
+                <div class="stat-card"><h2>${highest}</h2><p>Highest</p></div>
+                <div class="stat-card"><h2>${lowest}</h2><p>Lowest</p></div>
+            `;
+
+    // Grade distribution bar chart
+    const maxCount = Math.max(...Object.values(gradeCounts));
+    const colors = {
+      'A+': '#7c3aed',
+      'A': '#059669',
+      'B+': '#2563eb',
+      'B': '#0891b2',
+      'C': '#d97706',
+      'F': '#dc2626'
+    };
+    let distHtml = '';
+    Object.entries(gradeCounts).forEach(([g, count]) => {
+      const pct = maxCount ? ((count / maxCount) * 100).toFixed(0) : 0;
+      const pctOfClass = ((count / gradedResults.length) * 100).toFixed(0);
+      distHtml += `
+                    <div style="text-align:center;flex:1;min-width:70px;">
+                        <div style="font-size:12px;font-weight:700;color:${colors[g]};margin-bottom:6px;">${count} (${pctOfClass}%)</div>
+                        <div style="background:${colors[g]}22;border-radius:8px;overflow:hidden;height:120px;display:flex;align-items:flex-end;">
+                            <div style="background:${colors[g]};width:100%;height:${pct}%;border-radius:6px;transition:height 1s ease;"></div>
+                        </div>
+                        <div style="font-size:18px;font-weight:800;color:${colors[g]};margin-top:8px;">${g}</div>
+                    </div>`;
+    });
+    document.getElementById('gradeDistribution').innerHTML = distHtml;
+
+    // Results table
+    let html = `<div class="table-wrap"><table>
+                    <thead><tr>
+                        <th>Rank</th>
+                        <th>Roll No</th>
+                        <th>Student Name</th>
+                        <th>Batch</th>
+                        <th>Marks</th>
+                        <th>Grade</th>
+                        <th>GP</th>
+                        <th>Credits</th>
+                        <th>Credit Points</th>
+                      </tr></thead><tbody>`;
+
+    gradedResults.forEach((r, i) => {
+      html += `<tr>
+          <td><strong>#${i + 1}</strong></td>
+          <td>${r.rollNo}</td>
+          <td><strong>${r.name}</strong></td>
+          <td>${r.batch || '—'}</td>
+          <td>${r.marks.toFixed(1)}</td>
+          <td><span class="grade-${r.grade}">${r.grade}</span></td>
+          <td>${r.gradePoint}</td>
+          <td>${r.credits}</td>
+          <td>${r.creditPoints}</td>
+      </tr>`;
+    });
+
+    html += `</tbody></table></div>`;
+    console.log(gradedResults);
+    document.getElementById('resultsContainer').innerHTML = html;
+    document.getElementById('resultsSection').style.display = 'block';
+
+    document.getElementById('statsSection').scrollIntoView({ behavior: 'smooth' });
+  }
+}
+
+function exportGrades() {
+  if (gradedResults.length === 0) { alert('Generate grades first.'); return; }
+  const headers = ['Rank', 'Roll No', 'Name', 'Batch', 'Average Marks', 'Z-Score', 'Relative Grade'];
+  const rows = gradedResults.map((r, i) => [i + 1, r.rollNo, r.name, r.batch, r.marks.toFixed(1), r.zScore, r.grade]);
+  const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'UniGrade_RelativeGrades.csv';
+  a.click();
+}
+
+
+let allRecords = [];
+
+async function loadRecords(user) {
+
+  const q = query(
+    collection(db, "records"),
+    where(
+      "facultyId",
+      "==",
+      user.uid
+    )
+  );
+
+  const snapshot = await getDocs(q);
+
+  allRecords = [];
+
+  snapshot.forEach((doc) => {
+
+    allRecords.push({
+      id: doc.id,
+      ...doc.data()
+    });
+
+  });
+
+  updateStats();
+  populateFilters();
+  renderTable(allRecords);
+
+  document.getElementById('searchInput')
+    .addEventListener('input', applyFilters);
+
+  document.getElementById('subjectFilter')
+    .addEventListener('change', applyFilters);
+
+  document.getElementById('batchFilter')
+    .addEventListener('change', applyFilters);
+
+}
+
+function updateStats() {
+
+  const students = [
+    ...new Set(allRecords.map(r => r.rollNo))
+  ];
+
+  const subjects = [
+    ...new Set(allRecords.map(r => r.subject))
+  ];
+
+  const avg = allRecords.length
+    ? (
+      allRecords.reduce(
+        (s, r) => s + (r.marks || 0),
+        0
+      ) / allRecords.length
+    ).toFixed(1)
+    : '—';
+
+  const totalStudents =
+    document.getElementById(
+      'totalStudents'
+    );
+
+  const totalSubjects =
+    document.getElementById(
+      'totalSubjects'
+    );
+
+  const totalRecords =
+    document.getElementById(
+      'totalRecords'
+    );
+
+  const avgMarks =
+    document.getElementById(
+      'avgMarks'
+    );
+
+  if (totalStudents)
+    totalStudents.textContent =
+      students.length || '—';
+
+  if (totalSubjects)
+    totalSubjects.textContent =
+      subjects.length || '—';
+
+  if (totalRecords)
+    totalRecords.textContent =
+      allRecords.length || '—';
+
+  if (avgMarks)
+    avgMarks.textContent =
+      avg;
+
+}
+
+function populateFilters() {
+  const subjects = [...new Set(allRecords.map(r => r.subject))];
+  const batches = [...new Set(allRecords.map(r => r.batch))];
+  const sf = document.getElementById('subjectFilter');
+  const bf = document.getElementById('batchFilter');
+
+  if (!sf || !bf) {
+    console.log("Filters not found on this page");
+    return;
+  }
+
+
+  subjects.forEach(s => { const o = document.createElement('option'); o.value = s; o.textContent = s; sf.appendChild(o); });
+  batches.forEach(b => { const o = document.createElement('option'); o.value = b; o.textContent = b; bf.appendChild(o); });
+}
+
+function applyFilters() {
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  const subject = document.getElementById('subjectFilter').value;
+  const batch = document.getElementById('batchFilter').value;
+
+  const filtered = allRecords.filter(r => {
+    const matchSearch = !search || r.name.toLowerCase().includes(search) || r.rollNo.toLowerCase().includes(search);
+    const matchSubject = !subject || r.subject === subject;
+    const matchBatch = !batch || r.batch === batch;
+    return matchSearch && matchSubject && matchBatch;
+  });
+
+  renderTable(filtered);
+}
+
+function clearFilters() {
+  document.getElementById('searchInput').value = '';
+  document.getElementById('subjectFilter').value = '';
+  document.getElementById('batchFilter').value = '';
+  renderTable(allRecords);
+}
+
+function renderTable(records) {
+  const container = document.getElementById('recordsContainer');
+
+  if (records.length === 0) {
+    container.innerHTML = `
+            <div class="empty-state" style="background:var(--surface);border-radius:var(--radius-lg);border:1px solid rgba(255,255,255,0.5);">
+                <div class="empty-icon">📭</div>
+                <h3>${allRecords.length === 0 ? 'No records uploaded yet' : 'No matching records'}</h3>
+                <p>${allRecords.length === 0 ? 'Upload subject marks to see them here.' : 'Try adjusting your search or filters.'}</p>
+                ${allRecords.length === 0 ? '<button onclick="window.location.href=\'upload-excel.html\'" style="margin-top:20px;width:auto;padding:12px 28px;">Upload Now →</button>' : ''}
+            </div>`;
+    return;
+  }
+
+  let html = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
+            <p style="font-size:14px;color:var(--text-muted);font-weight:500;">${records.length} record${records.length !== 1 ? 's' : ''} found</p>
+            <button class="btn-danger" onclick="deleteSelectedRecords()" style="width:auto;padding:9px 18px;font-size:13px;">🗑️ Delete Selected</button>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>
+                          <input type="checkbox" id="selectAllRecords">
+                        </th>
+                        <th>#</th>
+                        <th>Roll No</th>
+                        <th>Student Name</th>
+                        <th>Subject</th>
+                        <th>Batch</th>
+                        <th>Type</th>
+                        <th>Theory (CA+Mid+End)</th>
+                        <th>Practical (Lab+Viva+End)</th>
+                        <th>Final Marks</th>
+                        <th>Grade</th>
+                        <th>Uploaded On</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+
+  records.forEach((r, i) => {
+    const pct = ((r.marks / (r.maxMarks || 100)) * 100).toFixed(0);
+    const grade = getGrade(Number(pct));
+    const theoryDetail = r.theoryTotal != null
+      ? `${r.theoryTotal} <span style="color:#94a3b8;font-size:11px;">(${r.ca || 0}+${r.midsem || 0}+${r.endsem || 0})</span>`
+      : '—';
+    const practicalDetail = r.practicalTotal != null && r.practicalTotal > 0
+      ? `${r.practicalTotal} <span style="color:#94a3b8;font-size:11px;">(${r.labManual || 0}+${r.viva || 0}+${r.endPractical || 0})</span>`
+      : '—';
+    html += `
+            <tr>
+                <td>
+                  <input
+                    type="checkbox"
+                    class="recordCheckbox"
+                    value="${r.id}">
+                </td>
+                <td>${i + 1}</td>
+                <td><strong>${r.rollNo}</strong></td>
+                <td>${r.name}</td>
+                <td><span class="badge badge-blue">${r.subject}</span></td>
+                <td>${r.batch || '—'}</td>
+                <td><span class="badge badge-green">${r.examType || 'theory'}</span></td>
+                <td>${theoryDetail}</td>
+                <td>${practicalDetail}</td>
+                <td><strong>${r.marks} / ${r.maxMarks || 100}</strong></td>
+                <td><span class="grade-${grade}" style="font-size:15px;">${grade}</span></td>
+                <td style="font-size:12.5px;color:var(--text-muted);">${r.uploadedOn || '—'}</td>
+            </tr>`;
+  });
+
+  html += `</tbody></table></div>`;
+  container.innerHTML = html;
+
+  setupSelectAll();
+}
+
+function getGrade(pct) {
+  if (pct >= 90) return 'O';
+  if (pct >= 80) return 'A+';
+  if (pct >= 70) return 'A';
+  if (pct >= 60) return 'B+';
+  if (pct >= 50) return 'B';
+  return 'F';
+}
+
+function exportCSV() {
+  if (allRecords.length === 0) { alert('No records to export.'); return; }
+  const headers = ['Roll No', 'Name', 'Subject', 'Batch', 'Marks', 'Max Marks', 'Academic Year', 'Uploaded On'];
+  const rows = allRecords.map(r => [r.rollNo, r.name, r.subject, r.batch, r.marks, r.maxMarks || 100, r.academicYear || '—', r.uploadedOn || '—']);
+  const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'UniGrade_StudentRecords.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function loadInstitutionRecords() {
+
+  const snapshot =
+    await getDocs(
+      collection(db, "records")
+    );
+
+  allRecords = [];
+
+  snapshot.forEach((doc) => {
+
+    allRecords.push({
+      id: doc.id,
+      ...doc.data()
+    });
+
+  });
+
+  updateStats();
+  populateFilters();
+  renderTable(allRecords);
+
+}
+
+async function confirmDelete() {
+
+  const confirmAction = confirm(
+    "Delete ALL records from Firestore?"
+  );
+
+  if (!confirmAction) return;
+
+  const snapshot = await getDocs(
+    collection(db, "records")
+  );
+
+  for (const document of snapshot.docs) {
+
+    await deleteDoc(document.ref);
+
+  }
+
+  alert("All records deleted.");
+
+  location.reload();
+
+}
+
+function setupSelectAll() {
+
+  const selectAll =
+    document.getElementById(
+      "selectAllRecords"
+    );
+
+  if (!selectAll) return;
+
+  selectAll.addEventListener(
+    "change",
+    function () {
+
+      document
+        .querySelectorAll(
+          ".recordCheckbox"
+        )
+        .forEach(cb => {
+
+          cb.checked =
+            this.checked;
+
+        });
+
+    }
+  );
+
+}
+
+async function deleteSelectedRecords() {
+
+  const selected =
+    document.querySelectorAll(
+      ".recordCheckbox:checked"
+    );
+
+  if (selected.length === 0) {
+
+    alert(
+      "Please select at least one record."
+    );
+
+    return;
+  }
+
+  const confirmDelete =
+    confirm(
+      `Delete ${selected.length} selected record(s)?`
+    );
+
+  if (!confirmDelete) return;
+
+  for (const cb of selected) {
+
+    await deleteDoc(
+      doc(
+        db,
+        "records",
+        cb.value
+      )
+    );
+
+  }
+
+  alert(
+    `${selected.length} record(s) deleted successfully.`
+  );
+
+  await loadRecords(auth.currentUser);
+
+  const user = auth.currentUser;
+
+  for (const cb of selected) {
+
+    const record =
+      allRecords.find(
+        r => r.id === cb.value
+      );
+
+    if (
+      record &&
+      record.facultyId === user.uid
+    ) {
+
+      await deleteDoc(
+        doc(db, "records", cb.value)
+      );
+
+    }
+
+  }
+
+}
+
+
+
+
+window.facultyRegister = facultyRegister;
+window.facultyLogin = facultyLogin;
+window.institutionLogin = institutionLogin;
+window.institutionRegister = institutionRegister;
+window.sendForgotOTP = sendForgotOTP;
+window.verifyOTPAndReset = verifyOTPAndReset;
+window.addSubject = addSubject;
+window.calculateSGPA = calculateSGPA;
+window.updateExamTypeVisibility = updateExamTypeVisibility;
+window.readExcelFile = readExcelFile;
+window.saveRecords = saveRecords;
+window.exportAllResults = exportAllResults;
+window.confirmDelete = confirmDelete;
+window.logoutFaculty = logoutFaculty;
+window.saveProfile = saveProfile;
+window.changePassword = changePassword;
+window.generateGrades = generateGrades;
+window.exportGrades = exportGrades;
+window.deleteSelectedRecords = deleteSelectedRecords;

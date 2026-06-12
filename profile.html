@@ -1,14 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Profile | UniGrade</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
 
     <nav class="navbar">
@@ -16,7 +19,7 @@
             <a href="index.html" class="logo">🎓 UniGrade</a>
             <div class="nav-links">
                 <a href="faculty-dashboard.html">← Dashboard</a>
-                <a href="faculty-login.html" onclick="localStorage.removeItem('facultyEmail')" style="color:#dc2626;">Logout</a>
+                <a href="#" onclick="logoutFaculty()">Logout</a>
             </div>
         </div>
     </nav>
@@ -24,21 +27,26 @@
     <div class="page-wrapper">
         <div style="max-width:700px; margin:0 auto;">
             <div style="margin-bottom:36px;" class="fade-up">
-                <p style="font-size:13px;color:var(--text-muted);font-weight:600;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:8px;">Faculty Portal</p>
-                <h1 style="font-size:40px;font-weight:800;color:var(--primary);letter-spacing:-1px;margin-bottom:8px;">My Profile</h1>
+                <p
+                    style="font-size:13px;color:var(--text-muted);font-weight:600;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:8px;">
+                    Faculty Portal</p>
+                <h1 style="font-size:40px;font-weight:800;color:var(--primary);letter-spacing:-1px;margin-bottom:8px;">
+                    My Profile</h1>
             </div>
 
             <!-- AVATAR & NAME -->
             <div class="card fade-up delay-1" style="text-align:center; margin-bottom:24px; padding:40px;">
                 <div class="profile-avatar">👨‍🏫</div>
-                <h2 id="profileName" style="color:var(--primary);font-size:24px;font-weight:800;margin-bottom:6px;"></h2>
+                <h2 id="profileName" style="color:var(--primary);font-size:24px;font-weight:800;margin-bottom:6px;">
+                </h2>
                 <p id="profileEmail" style="color:var(--text-muted);font-size:15px;margin:0;"></p>
                 <span class="badge badge-green" style="margin-top:12px;">Faculty</span>
             </div>
 
             <!-- EDIT PROFILE -->
             <div class="card fade-up delay-2" style="margin-bottom:24px;">
-                <h3 style="color:var(--primary);font-size:18px;font-weight:700;margin-bottom:24px;">Account Information</h3>
+                <h3 style="color:var(--primary);font-size:18px;font-weight:700;margin-bottom:24px;">Account Information
+                </h3>
 
                 <div id="profileAlert" style="display:none;"></div>
 
@@ -46,8 +54,7 @@
                 <input type="text" id="editName" placeholder="Dr. John Smith">
 
                 <label>Email Address</label>
-                <input type="email" id="editEmail" placeholder="faculty@university.edu">
-
+                <input type="email" id="editEmail" readonly>
                 <label>Department</label>
                 <input type="text" id="editDept" placeholder="Computer Science">
 
@@ -75,81 +82,7 @@
         </div>
     </div>
 
-    <script src="script.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const email = localStorage.getItem('facultyEmail') || '';
-            const profile = JSON.parse(localStorage.getItem('facultyProfile') || '{}');
-            const name = profile.name || email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-
-            document.getElementById('profileName').textContent = name;
-            document.getElementById('profileEmail').textContent = email;
-            document.getElementById('editName').value = name;
-            document.getElementById('editEmail').value = email;
-            document.getElementById('editDept').value = profile.dept || '';
-            document.getElementById('editPhone').value = profile.phone || '';
-        });
-
-        function saveProfile() {
-            const name = document.getElementById('editName').value.trim();
-            const email = document.getElementById('editEmail').value.trim();
-            const dept = document.getElementById('editDept').value.trim();
-            const phone = document.getElementById('editPhone').value.trim();
-
-            const a = document.getElementById('profileAlert');
-            if (!name || !email) {
-                a.className = 'alert alert-error';
-                a.textContent = '⚠️ Name and email are required.';
-                a.style.display = 'flex';
-                return;
-            }
-
-            localStorage.setItem('facultyProfile', JSON.stringify({ name, dept, phone }));
-            localStorage.setItem('facultyEmail', email);
-            document.getElementById('profileName').textContent = name;
-            document.getElementById('profileEmail').textContent = email;
-
-            a.className = 'alert alert-success';
-            a.textContent = '✅ Profile updated successfully.';
-            a.style.display = 'flex';
-            setTimeout(() => a.style.display = 'none', 3000);
-        }
-
-        function changePassword() {
-            const curr = document.getElementById('currPass').value;
-            const next = document.getElementById('newPass').value;
-            const conf = document.getElementById('confPass').value;
-            const a = document.getElementById('profileAlert');
-
-            if (!curr || !next || !conf) {
-                a.className = 'alert alert-error';
-                a.textContent = '⚠️ All password fields are required.';
-                a.style.display = 'flex';
-                return;
-            }
-
-            if (next.length < 8) {
-                a.className = 'alert alert-error';
-                a.textContent = '⚠️ New password must be at least 8 characters.';
-                a.style.display = 'flex';
-                return;
-            }
-
-            if (next !== conf) {
-                a.className = 'alert alert-error';
-                a.textContent = '⚠️ New passwords do not match.';
-                a.style.display = 'flex';
-                return;
-            }
-
-            document.getElementById('currPass').value = '';
-            document.getElementById('newPass').value = '';
-            document.getElementById('confPass').value = '';
-            a.className = 'alert alert-success';
-            a.textContent = '✅ Password changed successfully.';
-            a.style.display = 'flex';
-            setTimeout(() => a.style.display = 'none', 3000);
-        }
-    </script>
+    <script type="module" src="script.js"></script>
 </body>
+
 </html>
