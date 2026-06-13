@@ -23,7 +23,8 @@ import {
   getDocs,
   deleteDoc,
   query,
-  where
+  where,
+
 } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
 
 /* ── Utility ─────────────────────────────────────── */
@@ -1388,10 +1389,17 @@ function generateGrades() {
   dataForGrading = filtered.map(r => ({
     rollNo: r.rollNo,
     name: r.name,
+
     batch: r.batch,
+    semester: r.semester,
+    academicYear: r.academicYear,
+
+    subject: r.subject,
+    subjectCode: r.subjectCode,
+    examType: r.examType,
+
     marks: Number(r.marks) || 0,
-    credits: Number(r.credits) || 0,
-    subjects: [r.subject]
+    credits: Number(r.credits) || 0
   }));
 
   // Compute mean and SD
@@ -1531,7 +1539,76 @@ function generateGrades() {
   document.getElementById('resultsSection').style.display = 'block';
 
   document.getElementById('statsSection').scrollIntoView({ behavior: 'smooth' });
+  document.getElementById("saveGradesBtn").style.display = "inline-flex";
 }
+
+async function saveGradesToFirebase() {
+
+  if (!gradedResults.length) {
+    alert("Generate grades first.");
+    return;
+  }
+
+  const firstRecord = gradedResults[0];
+
+  const oldGradesQuery = query(
+    collection(db, "gradedRecords"),
+    where("subject", "==", firstRecord.subject),
+    where("batch", "==", firstRecord.batch),
+    where("semester", "==", firstRecord.semester),
+    where("academicYear", "==", firstRecord.academicYear)
+  );
+
+  const oldGrades = await getDocs(oldGradesQuery);
+
+  for (const d of oldGrades.docs) {
+    await deleteDoc(d.ref);
+  }
+
+  if (!gradedResults.length) {
+    alert("Generate grades first.");
+    return;
+  }
+
+  for (const r of gradedResults) {
+
+    await addDoc(
+      collection(db, "gradedRecords"),
+      {
+        rollNo: r.rollNo,
+        name: r.name,
+
+        subject: r.subject,
+        subjectCode: r.subjectCode,
+
+        batch: r.batch,
+        semester: r.semester,
+        academicYear: r.academicYear,
+
+        examType: r.examType,
+
+        marks: r.marks,
+        grade: r.grade,
+        gradePoint: r.gradePoint,
+
+        credits: r.credits,
+        creditPoints: r.creditPoints,
+
+        zScore: r.zScore,
+
+        facultyId: auth.currentUser.uid,
+        facultyEmail: auth.currentUser.email,
+
+        gradedOn: formatDate()
+      }
+    );
+
+  }
+
+  alert("Grades saved successfully!");
+
+}
+
 
 function exportGrades() {
   if (gradedResults.length === 0) { alert('Generate grades first.'); return; }
@@ -1947,3 +2024,4 @@ window.changePassword = changePassword;
 window.generateGrades = generateGrades;
 window.exportGrades = exportGrades;
 window.deleteSelectedRecords = deleteSelectedRecords;
+window.saveGradesToFirebase = saveGradesToFirebase;

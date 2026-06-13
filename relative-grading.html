@@ -117,8 +117,12 @@
                 </div>
             </div>
             <div style="display:flex;gap:12px;margin-top:8px;flex-wrap:wrap;">
-                <button onclick="generateGrades()" style="width:auto;padding:13px 32px;">📐 Generate Relative
-                    Grades</button>
+                <button onclick="generateGrades()" style="width:auto;padding:13px 32px;">
+                    📐 Generate Relative Grades</button>
+                <button id="saveGradesBtn" onclick="saveGradesToFirebase()"
+                    style="display:none;width:auto;padding:13px 24px;">
+                    💾 Save Grades
+                </button>
                 <button class="btn-secondary" onclick="exportGrades()" style="width:auto;padding:13px 24px;">⬇️ Export
                     CSV</button>
             </div>
