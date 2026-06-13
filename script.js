@@ -278,7 +278,6 @@ async function institutionLogin() {
         password
       );
 
-    console.log(userCredential.user.uid);
 
     const uid =
       userCredential.user.uid;
@@ -1125,7 +1124,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (page === 'relative-grading.html') {
 
-    initRelativeGrading();
+    onAuthStateChanged(auth, (user) => {
+
+      if (!user) {
+
+        window.location.href =
+          'faculty-login.html';
+
+        return;
+
+      }
+
+      initRelativeGrading();
+
+    });
 
   }
 
@@ -1249,26 +1261,44 @@ let gradedResults = [];
 
 async function initRelativeGrading() {
 
-  const snapshot = await getDocs(
-    collection(db, "records")
+  const user = auth.currentUser;
+
+  if (!user) {
+    window.location.href =
+      "faculty-login.html";
+    return;
+  }
+
+  const q = query(
+    collection(db, "records"),
+    where(
+      "facultyId",
+      "==",
+      user.uid
+    )
   );
+
+  const snapshot =
+    await getDocs(q);
 
   records = [];
 
   snapshot.forEach((doc) => {
 
-    records.push(doc.data());
+    records.push({
+      id: doc.id,
+      ...doc.data()
+    });
 
   });
 
   if (records.length === 0) {
 
     document.getElementById(
-      'noDataMsg'
-    ).style.display = 'block';
+      "noDataMsg"
+    ).style.display = "block";
 
     return;
-
   }
 
   const subjects = [
@@ -1281,18 +1311,18 @@ async function initRelativeGrading() {
 
   const sf =
     document.getElementById(
-      'gradingSubject'
+      "gradingSubject"
     );
 
   const bf =
     document.getElementById(
-      'gradingBatch'
+      "gradingBatch"
     );
 
   subjects.forEach(s => {
 
     const o =
-      document.createElement('option');
+      document.createElement("option");
 
     o.value = s;
     o.textContent = s;
@@ -1304,7 +1334,7 @@ async function initRelativeGrading() {
   batches.forEach(b => {
 
     const o =
-      document.createElement('option');
+      document.createElement("option");
 
     o.value = b;
     o.textContent = b;
@@ -1316,8 +1346,33 @@ async function initRelativeGrading() {
 }
 
 function generateGrades() {
-  const subjFilter = document.getElementById('gradingSubject').value;
-  const batchFilter = document.getElementById('gradingBatch').value;
+  const subjFilter =
+    document.getElementById(
+      "gradingSubject"
+    ).value;
+
+  const batchFilter =
+    document.getElementById(
+      "gradingBatch"
+    ).value;
+
+  if (!subjFilter) {
+
+    alert(
+      "Please select a subject."
+    );
+
+    return;
+  }
+
+  if (!batchFilter) {
+
+    alert(
+      "Please select a batch."
+    );
+
+    return;
+  }
 
   let filtered = records;
   if (subjFilter !== 'all') filtered = filtered.filter(r => r.subject === subjFilter);
@@ -1330,113 +1385,108 @@ function generateGrades() {
   // If all subjects combined, compute total marks per student
   let dataForGrading = [];
 
-  if (subjFilter === 'all') {
-    // Group by student, sum marks
-    const studentMap = {};
-    filtered.forEach(r => {
-      if (!studentMap[r.rollNo]) studentMap[r.rollNo] = { rollNo: r.rollNo, name: r.name, batch: r.batch, totalMarks: 0, subjectCount: 0, subjects: [] };
-      studentMap[r.rollNo].totalMarks += Number(r.marks) || 0;
-      studentMap[r.rollNo].subjectCount += 1;
-      studentMap[r.rollNo].subjects.push(r.subject);
-    });
-    dataForGrading = Object.values(studentMap).map(s => ({ ...s, marks: s.totalMarks / s.subjectCount }));
-  } else {
-    dataForGrading = filtered.map(r => ({
-      rollNo: r.rollNo,
-      name: r.name,
-      batch: r.batch,
-      marks: Number(r.marks) || 0,
-      credits: Number(r.credits) || 0,
-      subjects: [r.subject]
-    }));
+  dataForGrading = filtered.map(r => ({
+    rollNo: r.rollNo,
+    name: r.name,
+    batch: r.batch,
+    marks: Number(r.marks) || 0,
+    credits: Number(r.credits) || 0,
+    subjects: [r.subject]
+  }));
 
-    // Compute mean and SD
-    const markValues = dataForGrading.map(d => d.marks);
-    const mean = markValues.reduce((a, b) => a + b, 0) / markValues.length;
-    const variance = markValues.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / markValues.length;
-    const sd = Math.sqrt(variance);
+  // Compute mean and SD
+  const markValues = dataForGrading.map(d => d.marks);
+  const mean = markValues.reduce((a, b) => a + b, 0) / markValues.length;
+  const variance = markValues.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / markValues.length;
+  const sd = Math.sqrt(variance);
 
-    // Assign grades
-    gradedResults = dataForGrading.map(d => {
+  // Assign grades
+  gradedResults = dataForGrading.map(d => {
 
-      const z = (d.marks - mean) / sd;
+    const z = (d.marks - mean) / sd;
 
-      let grade;
+    let grade;
 
-      if (z >= 1.5) grade = 'A+';
-      else if (z >= 0.5) grade = 'A';
-      else if (z >= -0.5) grade = 'B+';
-      else if (z >= -1.5) grade = 'B';
-      else if (z >= -2.5) grade = 'C';
-      else grade = 'F';
+    if (z >= 1.5) grade = 'A+';
+    else if (z >= 0.5) grade = 'A';
+    else if (z >= -0.5) grade = 'B+';
+    else if (z >= -1.5) grade = 'B';
+    else if (z >= -2.5) grade = 'C+';
+    else if (z >= -3.5) grade = 'C';
+    else if (z >= -4.5) grade = 'D';
+    else grade = 'F';
 
-      let gp;
+    let gp;
 
-      if (grade === 'A+') gp = 10;
-      else if (grade === 'A') gp = 9;
-      else if (grade === 'B+') gp = 8;
-      else if (grade === 'B') gp = 7;
-      else if (grade === 'C') gp = 5;
-      else gp = 0;
+    if (grade === 'A+') gp = 10;
+    else if (grade === 'A') gp = 9;
+    else if (grade === 'B+') gp = 8;
+    else if (grade === 'B') gp = 7;
+    else if (grade === 'C+') gp = 6;
+    else if (grade === 'C') gp = 5;
+    else if (grade === 'D') gp = 4;
+    else gp = 0;
 
-      const credits = Number(d.credits) || 0;
+    const credits = Number(d.credits) || 0;
 
-      const creditPoints =
-        gp * credits;
+    const creditPoints =
+      gp * credits;
 
-      return {
+    return {
 
-        ...d,
+      ...d,
 
-        grade,
+      grade,
 
-        gradePoint: gp,
+      gradePoint: gp,
 
-        credits,
+      credits,
 
-        creditPoints,
+      creditPoints,
 
-        zScore: z.toFixed(2)
+      zScore: z.toFixed(2)
 
-      };
+    };
 
-    });
+  });
 
-    // Sort by marks desc
-    gradedResults.sort((a, b) => b.marks - a.marks);
+  // Sort by marks desc
+  gradedResults.sort((a, b) => b.marks - a.marks);
 
-    // Save
-    localStorage.setItem('relativeGrades', JSON.stringify(gradedResults));
+  // Save
+  localStorage.setItem('relativeGrades', JSON.stringify(gradedResults));
 
-    // Show stats
-    const gradeCounts = { 'A+': 0, 'A': 0, 'B+': 0, 'B': 0, 'C': 0, 'F': 0 };
-    gradedResults.forEach(r => gradeCounts[r.grade]++);
-    const highest = Math.max(...markValues).toFixed(1);
-    const lowest = Math.min(...markValues).toFixed(1);
+  // Show stats
+  const gradeCounts = { 'A+': 0, 'A': 0, 'B+': 0, 'B': 0, 'C+': 0, 'C': 0, 'D': 0, 'F': 0 };
+  gradedResults.forEach(r => gradeCounts[r.grade]++);
+  const highest = Math.max(...markValues).toFixed(1);
+  const lowest = Math.min(...markValues).toFixed(1);
 
-    document.getElementById('statsSection').style.display = 'block';
-    document.getElementById('statsGrid').innerHTML = `
+  document.getElementById('statsSection').style.display = 'block';
+  document.getElementById('statsGrid').innerHTML = `
                 <div class="stat-card"><h2>${mean.toFixed(1)}</h2><p>Class Mean</p></div>
                 <div class="stat-card"><h2>${sd.toFixed(1)}</h2><p>Std Deviation</p></div>
                 <div class="stat-card"><h2>${highest}</h2><p>Highest</p></div>
                 <div class="stat-card"><h2>${lowest}</h2><p>Lowest</p></div>
             `;
 
-    // Grade distribution bar chart
-    const maxCount = Math.max(...Object.values(gradeCounts));
-    const colors = {
-      'A+': '#7c3aed',
-      'A': '#059669',
-      'B+': '#2563eb',
-      'B': '#0891b2',
-      'C': '#d97706',
-      'F': '#dc2626'
-    };
-    let distHtml = '';
-    Object.entries(gradeCounts).forEach(([g, count]) => {
-      const pct = maxCount ? ((count / maxCount) * 100).toFixed(0) : 0;
-      const pctOfClass = ((count / gradedResults.length) * 100).toFixed(0);
-      distHtml += `
+  // Grade distribution bar chart
+  const maxCount = Math.max(...Object.values(gradeCounts));
+  const colors = {
+    'A+': '#7c3aed',
+    'A': '#059669',
+    'B+': '#2563eb',
+    'B': '#0891b2',
+    'C+': '#0ea5e9',
+    'C': '#d97706',
+    'D': '#f97316',
+    'F': '#dc2626'
+  };
+  let distHtml = '';
+  Object.entries(gradeCounts).forEach(([g, count]) => {
+    const pct = maxCount ? ((count / maxCount) * 100).toFixed(0) : 0;
+    const pctOfClass = ((count / gradedResults.length) * 100).toFixed(0);
+    distHtml += `
                     <div style="text-align:center;flex:1;min-width:70px;">
                         <div style="font-size:12px;font-weight:700;color:${colors[g]};margin-bottom:6px;">${count} (${pctOfClass}%)</div>
                         <div style="background:${colors[g]}22;border-radius:8px;overflow:hidden;height:120px;display:flex;align-items:flex-end;">
@@ -1444,11 +1494,11 @@ function generateGrades() {
                         </div>
                         <div style="font-size:18px;font-weight:800;color:${colors[g]};margin-top:8px;">${g}</div>
                     </div>`;
-    });
-    document.getElementById('gradeDistribution').innerHTML = distHtml;
+  });
+  document.getElementById('gradeDistribution').innerHTML = distHtml;
 
-    // Results table
-    let html = `<div class="table-wrap"><table>
+  // Results table
+  let html = `<div class="table-wrap"><table>
                     <thead><tr>
                         <th>Rank</th>
                         <th>Roll No</th>
@@ -1461,8 +1511,8 @@ function generateGrades() {
                         <th>Credit Points</th>
                       </tr></thead><tbody>`;
 
-    gradedResults.forEach((r, i) => {
-      html += `<tr>
+  gradedResults.forEach((r, i) => {
+    html += `<tr>
           <td><strong>#${i + 1}</strong></td>
           <td>${r.rollNo}</td>
           <td><strong>${r.name}</strong></td>
@@ -1473,15 +1523,14 @@ function generateGrades() {
           <td>${r.credits}</td>
           <td>${r.creditPoints}</td>
       </tr>`;
-    });
+  });
 
-    html += `</tbody></table></div>`;
-    console.log(gradedResults);
-    document.getElementById('resultsContainer').innerHTML = html;
-    document.getElementById('resultsSection').style.display = 'block';
+  html += `</tbody></table></div>`;
+  console.log(gradedResults);
+  document.getElementById('resultsContainer').innerHTML = html;
+  document.getElementById('resultsSection').style.display = 'block';
 
-    document.getElementById('statsSection').scrollIntoView({ behavior: 'smooth' });
-  }
+  document.getElementById('statsSection').scrollIntoView({ behavior: 'smooth' });
 }
 
 function exportGrades() {

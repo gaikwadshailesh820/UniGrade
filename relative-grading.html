@@ -18,9 +18,9 @@
         <div class="nav-container">
             <a href="index.html" class="logo">🎓 UniGrade</a>
             <div class="nav-links">
-                <a href="institution-dashboard.html">← Dashboard</a>
-                <a href="institution-login.html" onclick="localStorage.removeItem('institutionEmail')"
-                    style="color:#dc2626;">Logout</a>
+                <a href="faculty-dashboard.html">← Dashboard</a>
+                <a href="#" onclick="logoutFaculty()" style="color:#dc2626;">Logout</a>
+
             </div>
         </div>
     </nav>
@@ -29,7 +29,7 @@
         <div style="margin-bottom:36px;" class="fade-up">
             <p
                 style="font-size:13px;color:var(--text-muted);font-weight:600;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:8px;">
-                Institution Portal</p>
+                Faculty Portal</p>
             <h1 style="font-size:40px;font-weight:800;color:var(--primary);letter-spacing:-1px;margin-bottom:8px;">
                 Relative Grading Engine</h1>
             <p style="color:var(--text-muted);font-size:16px;">Generate fair, statistically normalized grades using mean
@@ -106,13 +106,13 @@
                 <div>
                     <label>Subject Filter</label>
                     <select id="gradingSubject" style="margin-top:6px;">
-                        <option value="all">All Subjects (Combined)</option>
+                        <option value="">Select Subject</option>
                     </select>
                 </div>
                 <div>
                     <label>Batch Filter</label>
                     <select id="gradingBatch" style="margin-top:6px;">
-                        <option value="all">All Batches</option>
+                        <option value="">Select Batch</option>
                     </select>
                 </div>
             </div>
@@ -149,8 +149,8 @@
                 style="background:var(--surface);border-radius:var(--radius-lg);border:1px solid rgba(255,255,255,0.5);">
                 <div class="empty-icon">📭</div>
                 <h3>No records available</h3>
-                <p>Faculty must upload marks before grades can be generated.</p>
-                <button onclick="window.location.href='institution-dashboard.html'"
+                <p>Upload marks for a subject and batch to generate relative grades.</p>
+                <button onclick="window.location.href='faculty-dashboard.html'"
                     style="margin-top:20px;width:auto;padding:12px 28px;">← Go to Dashboard</button>
             </div>
         </div>
