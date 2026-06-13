@@ -9,7 +9,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
 
 const firebaseConfig = {
-    apiKey: "AIzaSyBpGljmkHts2UGrEk_pUyS1oITDw3QL604",
+    apiKey: "AIzaSyDp78Uw_23fh3hjdhJCSLusailxplDu9uw",
     authDomain: "uni-grade-1.firebaseapp.com",
     projectId: "uni-grade-1",
     storageBucket: "uni-grade-1.firebasestorage.app",
