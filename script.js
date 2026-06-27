@@ -1,17 +1,30 @@
 /* =====================================================
-   UniGrade — script.js  (v2 — Full Featured)
+   UniGrade — script.js  (v2 — Full Featured + SGPA Module)
    • Account creation (unique email/password)
    • Forgot password (OTP simulation)
    • New evaluation scheme: CA(25) + Midsem(25) + Endsem(50) = Theory(100)
    •                        LabManual(10) + LabAssessment(10) + Viva(30) + EndPractical(50) = Practical(100)
+   • Standalone SGPA Calculator Fixes
+   • Institution SGPA Generator Engine
    ===================================================== */
 
 import { auth, db } from "./firebase.js";
 
 import {
+  getAbsoluteSystems,
+  getRelativeSystems,
+  getActiveAbsoluteSystem,
+  setActiveAbsoluteSystem,
+  getActiveRelativeSystem,
+  setActiveRelativeSystem,
+  resolveGrade
+} from "./grading.js";
+
+import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  signOut
+  signOut,
+  onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
 
 import {
@@ -24,19 +37,27 @@ import {
   deleteDoc,
   query,
   where,
-
+  updateDoc
 } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
 
 /* ── Utility ─────────────────────────────────────── */
 function $el(id) { return document.getElementById(id); }
 
-function showAlert(elId, type, msg) {
+function showAlert(elId, type, msg, duration = 4000) {
   const el = $el(elId);
   if (!el) return;
+
   el.className = 'alert alert-' + type;
   el.innerHTML = msg;
   el.style.display = 'flex';
-  if (type === 'success') setTimeout(() => el.style.display = 'none', 4000);
+
+  clearTimeout(el.hideTimer);
+
+  if (type === 'success') {
+    el.hideTimer = setTimeout(() => {
+      el.style.display = 'none';
+    }, duration);
+  }
 }
 
 function formatDate() {
@@ -86,13 +107,6 @@ function generateOTP() {
   return Math.floor(100000 + Math.random() * 900000);
 }
 
-/* ── Auth Guards ──────────────────────────────────── */
-import {
-  onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/12.1.0/firebase-auth.js";
-
-
-
 /* ── Faculty Registration ─────────────────────────── */
 async function facultyRegister() {
   const name = ($el('regName') || {}).value?.trim();
@@ -118,7 +132,6 @@ async function facultyRegister() {
     return;
   }
   try {
-
     const userCredential =
       await createUserWithEmailAndPassword(
         auth,
@@ -145,45 +158,26 @@ async function facultyRegister() {
     );
 
     setTimeout(() => {
-
-      window.location.href =
-        'faculty-login.html';
-
+      window.location.href = 'faculty-login.html';
     }, 1500);
 
   }
-
   catch (error) {
-
-    showAlert(
-      'regAlert',
-      'error',
-      '⚠️ ' + error.message
-    );
-
+    showAlert('regAlert', 'error', '⚠️ ' + error.message);
   }
 }
 
-
 /* ── Faculty Login ────────────────────────────────── */
 async function facultyLogin() {
-
-  const email =
-    document.getElementById("facultyEmail").value;
-
-  const password =
-    document.getElementById("facultyPassword").value;
+  const email = document.getElementById("facultyEmail").value;
+  const password = document.getElementById("facultyPassword").value;
 
   if (!email || !password) {
-
-    alert("Please fill all fields");
-
+    showAlert('loginAlert', 'error', '⚠️ Please fill all fields.');
     return;
-
   }
 
   try {
-
     await signInWithEmailAndPassword(
       auth,
       email,
@@ -191,201 +185,101 @@ async function facultyLogin() {
     );
 
     const user = auth.currentUser;
-
     const facultyDoc = await getDoc(
       doc(db, "faculty", user.uid)
     );
 
     if (!facultyDoc.exists()) {
-
-      alert(
-        "Faculty profile not found."
-      );
-
+      showAlert('loginAlert', 'error', '⚠️ Faculty profile not found.');
       await signOut(auth);
-
       return;
-
     }
 
     if (!facultyDoc.data().approved) {
-
-      alert(
-        "Your account is waiting for institution approval."
-      );
-
+      showAlert('loginAlert', 'error', '⚠️ Your account is waiting for institution approval.');
       await signOut(auth);
-
       return;
-
     }
 
-    alert("Login Successful");
-
-    window.location.href =
-      "faculty-dashboard.html";
-
+    showAlert('loginAlert', 'success', '✅ Login Successful');
+    window.location.href = "faculty-dashboard.html";
   }
-
   catch (error) {
-
-    alert(error.message);
-
+    showAlert('loginAlert', 'error', '⚠️ ' + error.message);
   }
-
-
-
 }
-
-window.facultyLogin = facultyLogin;
 
 /* ── Institution Login ────────────────────────────── */
 async function institutionLogin() {
-
   console.log("Institution login started");
-
-  const emailEl =
-    $el('institutionEmail');
-
-  const passEl =
-    $el('institutionPassword');
+  const emailEl = $el('institutionEmail');
+  const passEl = $el('institutionPassword');
 
   if (!emailEl || !passEl) return;
 
-  const email =
-    emailEl.value.trim();
-
-  const password =
-    passEl.value;
+  const email = emailEl.value.trim();
+  const password = passEl.value;
 
   if (!email || !password) {
-
-    showAlert(
-      'loginAlert',
-      'error',
-      '⚠️ Please fill in all fields.'
-    );
-
+    showAlert('loginAlert', 'error', '⚠️ Please fill in all fields.');
     return;
-
   }
 
   try {
-
-    const userCredential =
-      await signInWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
-
-
-    const uid =
-      userCredential.user.uid;
-
-    const adminDoc =
-      await getDoc(
-        doc(db, "institution", uid)
-      );
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    const uid = userCredential.user.uid;
+    const adminDoc = await getDoc(doc(db, "institution", uid));
 
     if (!adminDoc.exists()) {
-
-      showAlert(
-        'loginAlert',
-        'error',
-        '⚠️ Access denied. You are not an institution administrator.'
-      );
-
+      showAlert('loginAlert', 'error', '⚠️ Access denied. You are not an institution administrator.');
       return;
-
     }
 
-    window.location.href =
-      'institution-dashboard.html';
-
+    window.location.href = 'institution-dashboard.html';
   }
-
   catch (error) {
-
-    showAlert(
-      'loginAlert',
-      'error',
-      '⚠️ Invalid email or password.'
-    );
-
+    showAlert('loginAlert', 'error', '⚠️ Invalid email or password.');
   }
-
 }
 
 /* ── Profile ────────────────────────────────────────── */
 async function loadFacultyProfile() {
-
   onAuthStateChanged(auth, async (user) => {
-
     if (!user) {
       window.location.href = "faculty-login.html";
       return;
     }
 
-    const facultyDoc = await getDoc(
-      doc(db, "faculty", user.uid)
-    );
-
+    const facultyDoc = await getDoc(doc(db, "faculty", user.uid));
     if (!facultyDoc.exists()) {
-      alert("Faculty profile not found.");
+      showAlert('profileAlert', 'error', '⚠️ Faculty profile not found.');
       return;
     }
 
     const profile = facultyDoc.data();
-
-    document.getElementById("profileName").textContent =
-      profile.name || "";
-
-    document.getElementById("profileEmail").textContent =
-      profile.email || "";
-
-    document.getElementById("editName").value =
-      profile.name || "";
-
-    document.getElementById("editEmail").value =
-      profile.email || "";
-
-    document.getElementById("editDept").value =
-      profile.department || "";
-
-    document.getElementById("editPhone").value =
-      profile.phone || "";
-
+    document.getElementById("profileName").textContent = profile.name || "";
+    document.getElementById("profileEmail").textContent = profile.email || "";
+    document.getElementById("editName").value = profile.name || "";
+    document.getElementById("editEmail").value = profile.email || "";
+    document.getElementById("editDept").value = profile.department || "";
+    document.getElementById("editPhone").value = profile.phone || "";
   });
-
 }
 
 async function saveProfile() {
-
-  const name =
-    document.getElementById("editName").value.trim();
-
-  const dept =
-    document.getElementById("editDept").value.trim();
-
-  const phone =
-    document.getElementById("editPhone").value.trim();
-
-  const a =
-    document.getElementById("profileAlert");
-
+  const name = document.getElementById("editName").value.trim();
+  const dept = document.getElementById("editDept").value.trim();
+  const phone = document.getElementById("editPhone").value.trim();
+  const a = document.getElementById("profileAlert");
   const user = auth.currentUser;
 
   if (!user) return;
 
   if (!name) {
-
     a.className = "alert alert-error";
     a.textContent = "⚠️ Name is required.";
     a.style.display = "flex";
-
     return;
-
   }
 
   await updateDoc(
@@ -397,11 +291,8 @@ async function saveProfile() {
     }
   );
 
-  document.getElementById("profileName").textContent =
-    name;
-
-  document.getElementById("profileEmail").textContent =
-    user.email;
+  document.getElementById("profileName").textContent = name;
+  document.getElementById("profileEmail").textContent = user.email;
 
   a.className = "alert alert-success";
   a.textContent = "✅ Profile updated successfully.";
@@ -410,54 +301,33 @@ async function saveProfile() {
   setTimeout(() => {
     a.style.display = "none";
   }, 3000);
-
 }
 
 async function changePassword() {
-
-  const curr =
-    document.getElementById("currPass").value;
-
-  const next =
-    document.getElementById("newPass").value;
-
-  const conf =
-    document.getElementById("confPass").value;
-
-  const a =
-    document.getElementById("profileAlert");
+  const curr = document.getElementById("currPass").value;
+  const next = document.getElementById("newPass").value;
+  const conf = document.getElementById("confPass").value;
+  const a = document.getElementById("profileAlert");
 
   if (!curr || !next || !conf) {
-
     a.className = "alert alert-error";
-    a.textContent =
-      "⚠️ All password fields are required.";
+    a.textContent = "⚠️ All password fields are required.";
     a.style.display = "flex";
-
     return;
-
   }
 
   if (next.length < 8) {
-
     a.className = "alert alert-error";
-    a.textContent =
-      "⚠️ New password must be at least 8 characters.";
+    a.textContent = "⚠️ New password must be at least 8 characters.";
     a.style.display = "flex";
-
     return;
-
   }
 
   if (next !== conf) {
-
     a.className = "alert alert-error";
-    a.textContent =
-      "⚠️ New passwords do not match.";
+    a.textContent = "⚠️ New passwords do not match.";
     a.style.display = "flex";
-
     return;
-
   }
 
   document.getElementById("currPass").value = "";
@@ -465,32 +335,20 @@ async function changePassword() {
   document.getElementById("confPass").value = "";
 
   a.className = "alert alert-success";
-  a.textContent =
-    "✅ Password validation successful.";
+  a.textContent = "✅ Password validation successful.";
   a.style.display = "flex";
-
 }
 
 /* ── Logout ────────────────────────────────────────── */
 async function logoutFaculty() {
-
   await signOut(auth);
-
   localStorage.clear();
-
-  window.location.href =
-    "faculty-login.html";
-
+  window.location.href = "faculty-login.html";
 }
 async function logoutInstitution() {
-
   await signOut(auth);
-
   localStorage.clear();
-
-  window.location.href =
-    "institution-login.html";
-
+  window.location.href = "institution-login.html";
 }
 
 /* ── Institution Registration ─────────────────────── */
@@ -551,13 +409,11 @@ function sendForgotOTP(role) {
   storeOTP(email, otp);
   localStorage.setItem('forgotEmail_' + role, email);
 
-  // Simulate OTP display (in real app this would be emailed)
   showAlert('forgotAlert', 'success',
     `✅ OTP generated! <br><strong style="font-size:22px;color:#1d4ed8;letter-spacing:4px;">${otp}</strong><br>
     <span style="font-size:12px;color:#64748b;">(In a real system, this would be sent to your email)</span>`
   );
 
-  // Show OTP step
   const step2 = $el('otpStep');
   if (step2) step2.style.display = 'block';
   const step1btn = $el('sendOtpBtn');
@@ -588,7 +444,6 @@ function verifyOTPAndReset(role) {
     return;
   }
 
-  // Update password
   const accounts = getAccounts(role);
   const idx = accounts.findIndex(a => a.email.toLowerCase() === email.toLowerCase());
   if (idx !== -1) {
@@ -606,9 +461,7 @@ function verifyOTPAndReset(role) {
 
 /* ── Faculty Dashboard ────────────────────────────── */
 async function initFacultyDashboard() {
-
   const user = auth.currentUser;
-
   if (!user) {
     window.location.href = 'faculty-login.html';
     return;
@@ -626,7 +479,6 @@ async function initFacultyDashboard() {
   );
 
   const snapshot = await getDocs(q);
-
   const allRecords = [];
 
   snapshot.forEach((doc) => {
@@ -666,16 +518,10 @@ async function initFacultyDashboard() {
 
 /* ── Institution Dashboard ────────────────────────── */
 async function initInstitutionDashboard() {
-
   const user = auth.currentUser;
-
   if (!user) {
-
-    window.location.href =
-      "institution-login.html";
-
+    window.location.href = "institution-login.html";
     return;
-
   }
 
   const email = user.email;
@@ -683,17 +529,13 @@ async function initInstitutionDashboard() {
   const wMsg = $el('instWelcome');
   if (wMsg) wMsg.textContent = 'Welcome, ' + name + '. Manage faculty uploads and generate final grades.';
 
-  const snapshot = await getDocs(
-    collection(db, "records")
-  );
-
+  const snapshot = await getDocs(collection(db, "records"));
   const allRecords = [];
 
   snapshot.forEach((doc) => {
-
     allRecords.push(doc.data());
-
   });
+  
   const students = [...new Set(allRecords.map(r => r.rollNo))];
   const subjects = [...new Set(allRecords.map(r => r.subject))];
   const batches = [...new Set(allRecords.map(r => r.batch))];
@@ -766,10 +608,6 @@ function initDropdown() {
 }
 
 /* ── SGPA Calculator — New Evaluation Scheme ──────── */
-// Theory: CA(25) + Midsem(25) + Endsem(50) = 100
-// Practical: LabManual(10) + LabAssessment(10) + Viva(30) + EndPractical(50) = 100
-// Final = Theory(60%) + Practical(40%)
-
 function addSubject() {
   const container = $el('subjectsContainer');
   if (!container) return;
@@ -855,19 +693,62 @@ function updateExamTypeVisibility(selectEl) {
   practicalSection.style.display = (val === 'theory') ? 'none' : 'block';
 }
 
+function renderGradePointReference(system) {
+  const box = $el('gradePointReference');
+  if (!box) return;
+  const nameEl = $el('gradePointRefSystemName');
+  if (nameEl) nameEl.textContent = '— ' + system.name;
+  const badgeClass = (gp) => gp >= 9 ? 'badge-purple' : gp >= 7 ? 'badge-green' : gp >= 5 ? 'badge-blue' : 'badge-red';
+  const sorted = [...system.rules].sort((a, b) => b.min - a.min);
+  box.innerHTML = sorted.map(r => {
+    const minLabel = r.min === -Infinity ? 'Below' : `≥${r.min}`;
+    return `<span class="badge ${badgeClass(r.gradePoint)}">${minLabel} → ${r.gradePoint} (${r.grade})</span>`;
+  }).join('');
+}
+
+function initGradingSystemSelectors() {
+  const absoluteSelect = $el('gradingSystemSelect');
+  if (absoluteSelect) {
+    const active = getActiveAbsoluteSystem();
+    absoluteSelect.innerHTML = getAbsoluteSystems()
+      .map(s => `<option value="${s.id}" ${s.id === active.id ? 'selected' : ''}>${s.name}${s.isCustom ? ' (Custom)' : ''}</option>`)
+      .join('');
+    renderGradePointReference(active);
+    absoluteSelect.addEventListener('change', () => {
+      setActiveAbsoluteSystem(absoluteSelect.value);
+      renderGradePointReference(getActiveAbsoluteSystem());
+    });
+  }
+
+  const relativeSelect = $el('relativeSystemSelect');
+  if (relativeSelect) {
+    const active = getActiveRelativeSystem();
+    relativeSelect.innerHTML = getRelativeSystems()
+      .map(s => `<option value="${s.id}" ${s.id === active.id ? 'selected' : ''}>${s.name}${s.isCustom ? ' (Custom)' : ''}</option>`)
+      .join('');
+    relativeSelect.addEventListener('change', () => setActiveRelativeSystem(relativeSelect.value));
+  }
+}
+
 function getNum(el) { return Math.max(0, Number(el?.value) || 0); }
 
 function calculateSGPA() {
   const cards = document.querySelectorAll('.subject-card');
   if (cards.length === 0) { alert('Please add at least one subject.'); return; }
 
+  const gradingSystem = getActiveAbsoluteSystem();
   let totalCreditPoints = 0;
   let totalCredits = 0;
   let breakdown = [];
 
   for (const card of cards) {
     const c = Number(card.querySelector('.credits')?.value);
-    if (!c || c <= 0) { alert('Please enter valid credits for all subjects.'); return; }
+    
+    // --> DIVIDE BY ZERO BUG FIX APPLIED HERE <-- //
+    if (!c || c <= 0) { 
+        alert('⚠️ Please enter valid credits (greater than 0) for all subjects to calculate SGPA.'); 
+        return; 
+    }
 
     const type = card.querySelector('.examTypeSelect')?.value || 'theory';
     let finalMark = 0;
@@ -887,12 +768,12 @@ function calculateSGPA() {
     else if (type === 'practical') finalMark = practicalTotal;
     else finalMark = (theoryTotal * 0.6) + (practicalTotal * 0.4); // combined
 
-    const gp = marksToGP(finalMark);
+    const { grade, gradePoint: gp } = resolveGrade(gradingSystem, finalMark);
     totalCreditPoints += c * gp;
     totalCredits += c;
 
     const name = card.querySelector('.subjectName')?.value || 'Subject';
-    breakdown.push({ name, finalMark: finalMark.toFixed(1), gp, credits: c, type });
+    breakdown.push({ name, finalMark: finalMark.toFixed(1), gp, grade, credits: c, type });
   }
 
   const sgpa = (totalCreditPoints / totalCredits).toFixed(2);
@@ -917,7 +798,7 @@ function calculateSGPA() {
         <td><strong>${b.name}</strong></td>
         <td><span class="badge badge-blue">${b.type}</span></td>
         <td>${b.finalMark}</td>
-        <td class="grade-${gpToGrade(b.gp)}">${b.gp} (${gpToGrade(b.gp)})</td>
+        <td class="grade-${b.grade}">${b.gp} (${b.grade})</td>
         <td>${b.credits}</td>
         <td>${(b.gp * b.credits).toFixed(1)}</td>
       </tr>`;
@@ -926,26 +807,6 @@ function calculateSGPA() {
     bkEl.innerHTML = html;
     bkEl.style.display = 'block';
   }
-}
-
-function marksToGP(marks) {
-  if (marks >= 90) return 10;
-  if (marks >= 80) return 9;
-  if (marks >= 70) return 8;
-  if (marks >= 60) return 7;
-  if (marks >= 50) return 6;
-  if (marks >= 40) return 5;
-  return 0;
-}
-
-function gpToGrade(gp) {
-  if (gp === 10) return 'O';
-  if (gp === 9) return 'A+';
-  if (gp === 8) return 'A';
-  if (gp === 7) return 'B+';
-  if (gp === 6) return 'B';
-  if (gp === 5) return 'C';
-  return 'F';
 }
 
 /* ── Excel Upload ─────────────────────────────────── */
@@ -1060,30 +921,57 @@ async function saveRecords() {
       semester,
       academicYear,
       uploadedOn: formatDate(),
-
       facultyId,
       facultyEmail
     };
   });
 
-  for (const record of enriched) {
+  const oldRecordsQuery = query(
+    collection(db, "records"),
+    where("facultyId", "==", facultyId),
+    where("subject", "==", subjectName),
+    where("batch", "==", batchName),
+    where("semester", "==", semester),
+    where("academicYear", "==", academicYear)
+  );
 
+  const oldRecords = await getDocs(oldRecordsQuery);
+  const isUpdate = !oldRecords.empty;
+
+  for (const docSnap of oldRecords.docs) {
+    await deleteDoc(docSnap.ref);
+  }
+
+  for (const record of enriched) {
     await addDoc(
       collection(db, "records"),
       {
         ...record,
-        facultyId: auth.currentUser.uid,
-        facultyEmail: auth.currentUser.email
+        facultyId,
+        facultyEmail
       }
     );
-
   }
 
   const history = JSON.parse(localStorage.getItem('uploadHistory') || '[]');
   history.push({ subject: subjectName, batch: batchName, examType, count: enriched.length, date: formatDate() });
   localStorage.setItem('uploadHistory', JSON.stringify(history));
 
-  showAlert('uploadAlert', 'success', '✅ ' + enriched.length + ' records saved successfully!');
+  if (isUpdate) {
+    showAlert(
+      "uploadAlert",
+      "success",
+      `♻️ Existing records found.<br><br>
+     ${enriched.length} records have been replaced successfully.<br><br>
+     Please regenerate and save Relative Grades.`
+    );
+  } else {
+    showAlert(
+      "uploadAlert",
+      "success",
+      `✅ ${enriched.length} records uploaded successfully!`
+    );
+  }
   clearPreview();
 }
 
@@ -1091,6 +979,12 @@ function clearPreview() {
   uploadedData = [];
   const ps = $el('previewSection');
   if (ps) ps.style.display = 'none';
+  const tc = $el('tableContainer');
+  if (tc) tc.innerHTML = '';
+  const rc = $el('recordCount');
+  if (rc) rc.textContent = '';
+  const fileInput = $el('fileInput');
+  if (fileInput) fileInput.value = '';
 }
 
 /* ── Export All Results ───────────────────────────── */
@@ -1098,6 +992,7 @@ function exportAllResults() {
   const records = JSON.parse(localStorage.getItem('uploadedRecords') || '[]');
   if (!records.length) { alert('No records to export.'); return; }
   const headers = ['Roll No', 'Name', 'Subject', 'Batch', 'Exam Type', 'CA', 'Midsem', 'Endsem', 'Theory Total', 'Lab Manual', 'Lab Assess', 'Viva', 'End Practical', 'Practical Total', 'Final Marks', 'Academic Year', 'Uploaded On'];
+
   const rows = records.map(r => [r.rollNo, r.name, r.subject, r.batch, r.examType || 'theory',
   r.ca || 0, r.midsem || 0, r.endsem || 0, r.theoryTotal || r.marks,
   r.labManual || 0, r.labAssessment || 0, r.viva || 0, r.endPractical || 0, r.practicalTotal || 0,
@@ -1117,263 +1012,119 @@ function downloadCSV(rows, filename) {
 /* ── DOMContentLoaded Router ─────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {
 
-  const page =
-    location.pathname.split('/').pop()
-    || 'index.html';
+  const page = location.pathname.split('/').pop() || 'index.html';
 
   initDropdown();
+  initGradingSystemSelectors();
+
+  // -> NEW: Institution SGPA Router
+  if (page === 'institution-sgpa.html') {
+    onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        window.location.href = 'institution-login.html';
+        return;
+      }
+      initInstitutionSGPA();
+    });
+  }
 
   if (page === 'relative-grading.html') {
-
     onAuthStateChanged(auth, (user) => {
-
-      if (!user) {
-
-        window.location.href =
-          'faculty-login.html';
-
-        return;
-
-      }
-
+      if (!user) { window.location.href = 'faculty-login.html'; return; }
       initRelativeGrading();
-
     });
-
   }
 
   if (page === 'profile.html') {
-
     loadFacultyProfile();
-
   }
 
   if (page === 'faculty-dashboard.html') {
-
     onAuthStateChanged(auth, (user) => {
-
-      if (!user) {
-
-        window.location.href =
-          'faculty-login.html';
-
-        return;
-
-      }
-
+      if (!user) { window.location.href = 'faculty-login.html'; return; }
       initFacultyDashboard();
-
     });
-
   }
 
   if (page === 'institution-dashboard.html') {
-
     onAuthStateChanged(auth, async (user) => {
-
-      if (!user) {
-
-        window.location.href =
-          'institution-login.html';
-
-        return;
-
-      }
-
-      const adminDoc =
-        await getDoc(
-          doc(db, "institution", user.uid)
-        );
-
-      if (!adminDoc.exists()) {
-
-        window.location.href =
-          'institution-login.html';
-
-        return;
-
-      }
-
+      if (!user) { window.location.href = 'institution-login.html'; return; }
+      const adminDoc = await getDoc(doc(db, "institution", user.uid));
+      if (!adminDoc.exists()) { window.location.href = 'institution-login.html'; return; }
       initInstitutionDashboard();
-
     });
-
   }
 
   if (page === 'student-records.html') {
-
     onAuthStateChanged(auth, (user) => {
-
-      if (!user) {
-
-        window.location.href =
-          'faculty-login.html';
-
-        return;
-
-      }
-
+      if (!user) { window.location.href = 'faculty-login.html'; return; }
       loadRecords(user);
-
     });
-
   }
 
   if (page === 'institution-records.html') {
-
     onAuthStateChanged(auth, (user) => {
-
-      if (!user) {
-
-        window.location.href =
-          'institution-login.html';
-
-        return;
-
-      }
-
+      if (!user) { window.location.href = 'institution-login.html'; return; }
       loadInstitutionRecords();
-
     });
-
   }
 
-
-
-  const firstCard =
-    document.querySelector('.subject-card');
-
+  const firstCard = document.querySelector('.subject-card');
   if (firstCard) {
-
-    const sel =
-      firstCard.querySelector('.examTypeSelect');
-
-    if (sel)
-      updateExamTypeVisibility(sel);
-
+    const sel = firstCard.querySelector('.examTypeSelect');
+    if (sel) updateExamTypeVisibility(sel);
   }
-
 });
 
 /* ── Student Records Management (Faculty) ─────────── */
-
 let records = [];
 let gradedResults = [];
 
 async function initRelativeGrading() {
-
   const user = auth.currentUser;
-
-  if (!user) {
-    window.location.href =
-      "faculty-login.html";
-    return;
-  }
+  if (!user) { window.location.href = "faculty-login.html"; return; }
 
   const q = query(
     collection(db, "records"),
-    where(
-      "facultyId",
-      "==",
-      user.uid
-    )
+    where("facultyId", "==", user.uid)
   );
-
-  const snapshot =
-    await getDocs(q);
+  const snapshot = await getDocs(q);
 
   records = [];
-
   snapshot.forEach((doc) => {
-
-    records.push({
-      id: doc.id,
-      ...doc.data()
-    });
-
+    records.push({ id: doc.id, ...doc.data() });
   });
 
   if (records.length === 0) {
-
-    document.getElementById(
-      "noDataMsg"
-    ).style.display = "block";
-
+    document.getElementById("noDataMsg").style.display = "block";
     return;
   }
 
-  const subjects = [
-    ...new Set(records.map(r => r.subject))
-  ];
+  const subjects = [...new Set(records.map(r => r.subject))];
+  const batches = [...new Set(records.map(r => r.batch))];
 
-  const batches = [
-    ...new Set(records.map(r => r.batch))
-  ];
-
-  const sf =
-    document.getElementById(
-      "gradingSubject"
-    );
-
-  const bf =
-    document.getElementById(
-      "gradingBatch"
-    );
+  const sf = document.getElementById("gradingSubject");
+  const bf = document.getElementById("gradingBatch");
 
   subjects.forEach(s => {
-
-    const o =
-      document.createElement("option");
-
-    o.value = s;
-    o.textContent = s;
-
+    const o = document.createElement("option");
+    o.value = s; o.textContent = s;
     sf.appendChild(o);
-
   });
 
   batches.forEach(b => {
-
-    const o =
-      document.createElement("option");
-
-    o.value = b;
-    o.textContent = b;
-
+    const o = document.createElement("option");
+    o.value = b; o.textContent = b;
     bf.appendChild(o);
-
   });
-
 }
 
 function generateGrades() {
-  const subjFilter =
-    document.getElementById(
-      "gradingSubject"
-    ).value;
+  const subjFilter = document.getElementById("gradingSubject").value;
+  const batchFilter = document.getElementById("gradingBatch").value;
 
-  const batchFilter =
-    document.getElementById(
-      "gradingBatch"
-    ).value;
-
-  if (!subjFilter) {
-
-    alert(
-      "Please select a subject."
-    );
-
-    return;
-  }
-
-  if (!batchFilter) {
-
-    alert(
-      "Please select a batch."
-    );
-
-    return;
-  }
+  if (!subjFilter) { alert("Please select a subject."); return; }
+  if (!batchFilter) { alert("Please select a batch."); return; }
 
   let filtered = records;
   if (subjFilter !== 'all') filtered = filtered.filter(r => r.subject === subjFilter);
@@ -1383,90 +1134,48 @@ function generateGrades() {
     alert('No records match the selected filters.'); return;
   }
 
-  // If all subjects combined, compute total marks per student
-  let dataForGrading = [];
-
-  dataForGrading = filtered.map(r => ({
+  let dataForGrading = filtered.map(r => ({
     rollNo: r.rollNo,
     name: r.name,
-
     batch: r.batch,
     semester: r.semester,
     academicYear: r.academicYear,
-
     subject: r.subject,
     subjectCode: r.subjectCode,
     examType: r.examType,
-
     marks: Number(r.marks) || 0,
     credits: Number(r.credits) || 0
   }));
 
-  // Compute mean and SD
   const markValues = dataForGrading.map(d => d.marks);
   const mean = markValues.reduce((a, b) => a + b, 0) / markValues.length;
   const variance = markValues.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / markValues.length;
   const sd = Math.sqrt(variance);
+  const relativeSystem = getActiveRelativeSystem();
 
-  // Assign grades
   gradedResults = dataForGrading.map(d => {
-
-    const z = (d.marks - mean) / sd;
-
-    let grade;
-
-    if (z >= 1.5) grade = 'A+';
-    else if (z >= 0.5) grade = 'A';
-    else if (z >= -0.5) grade = 'B+';
-    else if (z >= -1.5) grade = 'B';
-    else if (z >= -2.5) grade = 'C+';
-    else if (z >= -3.5) grade = 'C';
-    else if (z >= -4.5) grade = 'D';
-    else grade = 'F';
-
-    let gp;
-
-    if (grade === 'A+') gp = 10;
-    else if (grade === 'A') gp = 9;
-    else if (grade === 'B+') gp = 8;
-    else if (grade === 'B') gp = 7;
-    else if (grade === 'C+') gp = 6;
-    else if (grade === 'C') gp = 5;
-    else if (grade === 'D') gp = 4;
-    else gp = 0;
-
+    const z = sd === 0 ? 0 : (d.marks - mean) / sd;
+    const { grade, gradePoint: gp } = resolveGrade(relativeSystem, z);
     const credits = Number(d.credits) || 0;
-
-    const creditPoints =
-      gp * credits;
+    const creditPoints = gp * credits;
 
     return {
-
       ...d,
-
       grade,
-
       gradePoint: gp,
-
       credits,
-
       creditPoints,
-
       zScore: z.toFixed(2)
-
     };
-
   });
 
-  // Sort by marks desc
   gradedResults.sort((a, b) => b.marks - a.marks);
-
-  // Save
   localStorage.setItem('relativeGrades', JSON.stringify(gradedResults));
 
-  // Show stats
-  const gradeCounts = { 'A+': 0, 'A': 0, 'B+': 0, 'B': 0, 'C+': 0, 'C': 0, 'D': 0, 'F': 0 };
-  gradedResults.forEach(r => gradeCounts[r.grade]++);
+  const gradeOrder = [...relativeSystem.rules].sort((a, b) => b.min - a.min).map(r => r.grade);
+  const gradeCounts = {};
+  gradeOrder.forEach(g => gradeCounts[g] = 0);
+  gradedResults.forEach(r => { gradeCounts[r.grade] = (gradeCounts[r.grade] || 0) + 1; });
   const highest = Math.max(...markValues).toFixed(1);
   const lowest = Math.min(...markValues).toFixed(1);
 
@@ -1478,18 +1187,10 @@ function generateGrades() {
                 <div class="stat-card"><h2>${lowest}</h2><p>Lowest</p></div>
             `;
 
-  // Grade distribution bar chart
   const maxCount = Math.max(...Object.values(gradeCounts));
-  const colors = {
-    'A+': '#7c3aed',
-    'A': '#059669',
-    'B+': '#2563eb',
-    'B': '#0891b2',
-    'C+': '#0ea5e9',
-    'C': '#d97706',
-    'D': '#f97316',
-    'F': '#dc2626'
-  };
+  const palette = ['#7c3aed', '#059669', '#2563eb', '#0891b2', '#0ea5e9', '#d97706', '#f97316', '#dc2626', '#64748b'];
+  const colors = {};
+  gradeOrder.forEach((g, i) => { colors[g] = palette[i % palette.length]; });
   let distHtml = '';
   Object.entries(gradeCounts).forEach(([g, count]) => {
     const pct = maxCount ? ((count / maxCount) * 100).toFixed(0) : 0;
@@ -1505,7 +1206,6 @@ function generateGrades() {
   });
   document.getElementById('gradeDistribution').innerHTML = distHtml;
 
-  // Results table
   let html = `<div class="table-wrap"><table>
                     <thead><tr>
                         <th>Rank</th>
@@ -1532,9 +1232,7 @@ function generateGrades() {
           <td>${r.creditPoints}</td>
       </tr>`;
   });
-
   html += `</tbody></table></div>`;
-  console.log(gradedResults);
   document.getElementById('resultsContainer').innerHTML = html;
   document.getElementById('resultsSection').style.display = 'block';
 
@@ -1543,12 +1241,7 @@ function generateGrades() {
 }
 
 async function saveGradesToFirebase() {
-
-  if (!gradedResults.length) {
-    alert("Generate grades first.");
-    return;
-  }
-
+  if (!gradedResults.length) { alert("Generate grades first."); return; }
   const firstRecord = gradedResults[0];
 
   const oldGradesQuery = query(
@@ -1560,55 +1253,28 @@ async function saveGradesToFirebase() {
   );
 
   const oldGrades = await getDocs(oldGradesQuery);
-
   for (const d of oldGrades.docs) {
     await deleteDoc(d.ref);
   }
 
-  if (!gradedResults.length) {
-    alert("Generate grades first.");
-    return;
-  }
-
   for (const r of gradedResults) {
-
     await addDoc(
       collection(db, "gradedRecords"),
       {
-        rollNo: r.rollNo,
-        name: r.name,
-
-        subject: r.subject,
-        subjectCode: r.subjectCode,
-
-        batch: r.batch,
-        semester: r.semester,
-        academicYear: r.academicYear,
-
+        rollNo: r.rollNo, name: r.name,
+        subject: r.subject, subjectCode: r.subjectCode,
+        batch: r.batch, semester: r.semester, academicYear: r.academicYear,
         examType: r.examType,
-
-        marks: r.marks,
-        grade: r.grade,
-        gradePoint: r.gradePoint,
-
-        credits: r.credits,
-        creditPoints: r.creditPoints,
-
+        marks: r.marks, grade: r.grade, gradePoint: r.gradePoint,
+        credits: r.credits, creditPoints: r.creditPoints,
         zScore: r.zScore,
-
-        facultyId: auth.currentUser.uid,
-        facultyEmail: auth.currentUser.email,
-
+        facultyId: auth.currentUser.uid, facultyEmail: auth.currentUser.email,
         gradedOn: formatDate()
       }
     );
-
   }
-
   alert("Grades saved successfully!");
-
 }
-
 
 function exportGrades() {
   if (gradedResults.length === 0) { alert('Generate grades first.'); return; }
@@ -1622,128 +1288,81 @@ function exportGrades() {
   a.click();
 }
 
-
 let allRecords = [];
 
 async function loadRecords(user) {
-
-  const q = query(
-    collection(db, "records"),
-    where(
-      "facultyId",
-      "==",
-      user.uid
-    )
-  );
-
+  const q = query(collection(db, "records"), where("facultyId", "==", user.uid));
   const snapshot = await getDocs(q);
-
   allRecords = [];
-
   snapshot.forEach((doc) => {
-
-    allRecords.push({
-      id: doc.id,
-      ...doc.data()
-    });
-
+    allRecords.push({ id: doc.id, ...doc.data() });
   });
 
   updateStats();
   populateFilters();
   renderTable(allRecords);
 
-  document.getElementById('searchInput')
-    .addEventListener('input', applyFilters);
-
-  document.getElementById('subjectFilter')
-    .addEventListener('change', applyFilters);
-
-  document.getElementById('batchFilter')
-    .addEventListener('change', applyFilters);
-
+  document.getElementById('searchInput').addEventListener('input', applyFilters);
+  document.getElementById('subjectFilter').addEventListener('change', applyFilters);
+  document.getElementById('batchFilter').addEventListener('change', applyFilters);
 }
 
 function updateStats() {
+  const students = [...new Set(allRecords.map(r => r.rollNo))];
+  const subjects = [...new Set(allRecords.map(r => r.subject))];
+  const avg = allRecords.length ? (allRecords.reduce((s, r) => s + (r.marks || 0), 0) / allRecords.length).toFixed(1) : '—';
 
-  const students = [
-    ...new Set(allRecords.map(r => r.rollNo))
-  ];
+  const totalStudents = document.getElementById('totalStudents');
+  const totalSubjects = document.getElementById('totalSubjects');
+  const totalRecords = document.getElementById('totalRecords');
+  const avgMarks = document.getElementById('avgMarks');
 
-  const subjects = [
-    ...new Set(allRecords.map(r => r.subject))
-  ];
-
-  const avg = allRecords.length
-    ? (
-      allRecords.reduce(
-        (s, r) => s + (r.marks || 0),
-        0
-      ) / allRecords.length
-    ).toFixed(1)
-    : '—';
-
-  const totalStudents =
-    document.getElementById(
-      'totalStudents'
-    );
-
-  const totalSubjects =
-    document.getElementById(
-      'totalSubjects'
-    );
-
-  const totalRecords =
-    document.getElementById(
-      'totalRecords'
-    );
-
-  const avgMarks =
-    document.getElementById(
-      'avgMarks'
-    );
-
-  if (totalStudents)
-    totalStudents.textContent =
-      students.length || '—';
-
-  if (totalSubjects)
-    totalSubjects.textContent =
-      subjects.length || '—';
-
-  if (totalRecords)
-    totalRecords.textContent =
-      allRecords.length || '—';
-
-  if (avgMarks)
-    avgMarks.textContent =
-      avg;
-
+  if (totalStudents) totalStudents.textContent = students.length || '—';
+  if (totalSubjects) totalSubjects.textContent = subjects.length || '—';
+  if (totalRecords) totalRecords.textContent = allRecords.length || '—';
+  if (avgMarks) avgMarks.textContent = avg;
 }
 
+/* ── Updated Filter Functions ── */
+
 function populateFilters() {
-  const subjects = [...new Set(allRecords.map(r => r.subject))];
-  const batches = [...new Set(allRecords.map(r => r.batch))];
   const sf = document.getElementById('subjectFilter');
   const bf = document.getElementById('batchFilter');
+  if (!sf || !bf) return;
 
-  if (!sf || !bf) {
-    console.log("Filters not found on this page");
-    return;
-  }
+  // Extract unique values
+  const subjects = [...new Set(allRecords.map(r => r.subject).filter(Boolean))];
+  const batches = [...new Set(allRecords.map(r => r.batch).filter(Boolean))];
 
+  // Refresh HTML
+  sf.innerHTML = '<option value="">All Subjects</option>';
+  bf.innerHTML = '<option value="">All Batches</option>';
 
-  subjects.forEach(s => { const o = document.createElement('option'); o.value = s; o.textContent = s; sf.appendChild(o); });
-  batches.forEach(b => { const o = document.createElement('option'); o.value = b; o.textContent = b; bf.appendChild(o); });
+  subjects.forEach(s => sf.innerHTML += `<option value="${s}">${s}</option>`);
+  batches.forEach(b => bf.innerHTML += `<option value="${b}">${b}</option>`);
+}
+
+function clearFilters() {
+    const searchInput = document.getElementById('searchInput');
+    const subjectFilter = document.getElementById('subjectFilter');
+    const batchFilter = document.getElementById('batchFilter');
+
+    if (searchInput) searchInput.value = '';
+    if (subjectFilter) subjectFilter.value = '';
+    if (batchFilter) batchFilter.value = '';
+
+    renderTable(allRecords);
 }
 
 function applyFilters() {
-  const search = document.getElementById('searchInput').value.toLowerCase();
-  const subject = document.getElementById('subjectFilter').value;
-  const batch = document.getElementById('batchFilter').value;
+  const search = document.getElementById('searchInput')?.value.toLowerCase() || "";
+  const subject = document.getElementById('subjectFilter')?.value || "";
+  const batch = document.getElementById('batchFilter')?.value || "";
 
   const filtered = allRecords.filter(r => {
-    const matchSearch = !search || r.name.toLowerCase().includes(search) || r.rollNo.toLowerCase().includes(search);
+    const matchSearch = !search || 
+                        (r.name?.toLowerCase().includes(search)) || 
+                        (r.rollNo?.toLowerCase().includes(search));
     const matchSubject = !subject || r.subject === subject;
     const matchBatch = !batch || r.batch === batch;
     return matchSearch && matchSubject && matchBatch;
@@ -1752,16 +1371,8 @@ function applyFilters() {
   renderTable(filtered);
 }
 
-function clearFilters() {
-  document.getElementById('searchInput').value = '';
-  document.getElementById('subjectFilter').value = '';
-  document.getElementById('batchFilter').value = '';
-  renderTable(allRecords);
-}
-
 function renderTable(records) {
   const container = document.getElementById('recordsContainer');
-
   if (records.length === 0) {
     container.innerHTML = `
             <div class="empty-state" style="background:var(--surface);border-radius:var(--radius-lg);border:1px solid rgba(255,255,255,0.5);">
@@ -1782,9 +1393,7 @@ function renderTable(records) {
             <table>
                 <thead>
                     <tr>
-                        <th>
-                          <input type="checkbox" id="selectAllRecords">
-                        </th>
+                        <th><input type="checkbox" id="selectAllRecords"></th>
                         <th>#</th>
                         <th>Roll No</th>
                         <th>Student Name</th>
@@ -1811,12 +1420,7 @@ function renderTable(records) {
       : '—';
     html += `
             <tr>
-                <td>
-                  <input
-                    type="checkbox"
-                    class="recordCheckbox"
-                    value="${r.id}">
-                </td>
+                <td><input type="checkbox" class="recordCheckbox" value="${r.id}"></td>
                 <td>${i + 1}</td>
                 <td><strong>${r.rollNo}</strong></td>
                 <td>${r.name}</td>
@@ -1830,20 +1434,13 @@ function renderTable(records) {
                 <td style="font-size:12.5px;color:var(--text-muted);">${r.uploadedOn || '—'}</td>
             </tr>`;
   });
-
   html += `</tbody></table></div>`;
   container.innerHTML = html;
-
   setupSelectAll();
 }
 
 function getGrade(pct) {
-  if (pct >= 90) return 'O';
-  if (pct >= 80) return 'A+';
-  if (pct >= 70) return 'A';
-  if (pct >= 60) return 'B+';
-  if (pct >= 50) return 'B';
-  return 'F';
+  return resolveGrade(getActiveAbsoluteSystem(), pct).grade;
 }
 
 function exportCSV() {
@@ -1861,150 +1458,267 @@ function exportCSV() {
 }
 
 async function loadInstitutionRecords() {
+    const container = document.getElementById('recordsContainer');
+    
+    // 1. CLEAR the array before fetching new data
+    allRecords = []; 
+    
+    try {
+        const snapshot = await getDocs(collection(db, "records"));
+        // 2. Map fresh data
+        allRecords = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-  const snapshot =
-    await getDocs(
-      collection(db, "records")
-    );
-
-  allRecords = [];
-
-  snapshot.forEach((doc) => {
-
-    allRecords.push({
-      id: doc.id,
-      ...doc.data()
-    });
-
-  });
-
-  updateStats();
-  populateFilters();
-  renderTable(allRecords);
-
+        console.log("Records loaded:", allRecords.length);
+        
+        updateStats();
+        populateFilters();
+        renderTable(allRecords);
+    } catch (e) {
+        console.error("Error loading records:", e);
+    }
 }
 
 async function confirmDelete() {
-
-  const confirmAction = confirm(
-    "Delete ALL records from Firestore?"
-  );
-
+  const confirmAction = confirm("Delete ALL records from Firestore?");
   if (!confirmAction) return;
 
-  const snapshot = await getDocs(
-    collection(db, "records")
-  );
-
+  const snapshot = await getDocs(collection(db, "records"));
   for (const document of snapshot.docs) {
-
     await deleteDoc(document.ref);
-
   }
-
   alert("All records deleted.");
-
   location.reload();
-
 }
 
 function setupSelectAll() {
-
-  const selectAll =
-    document.getElementById(
-      "selectAllRecords"
-    );
-
+  const selectAll = document.getElementById("selectAllRecords");
   if (!selectAll) return;
-
-  selectAll.addEventListener(
-    "change",
-    function () {
-
-      document
-        .querySelectorAll(
-          ".recordCheckbox"
-        )
-        .forEach(cb => {
-
-          cb.checked =
-            this.checked;
-
-        });
-
-    }
-  );
-
+  selectAll.addEventListener("change", function () {
+    document.querySelectorAll(".recordCheckbox").forEach(cb => { cb.checked = this.checked; });
+  });
 }
 
 async function deleteSelectedRecords() {
+  const selected = document.querySelectorAll(".recordCheckbox:checked");
+  if (selected.length === 0) { alert("Please select at least one record."); return; }
 
-  const selected =
-    document.querySelectorAll(
-      ".recordCheckbox:checked"
-    );
-
-  if (selected.length === 0) {
-
-    alert(
-      "Please select at least one record."
-    );
-
-    return;
-  }
-
-  const confirmDelete =
-    confirm(
-      `Delete ${selected.length} selected record(s)?`
-    );
-
+  const confirmDelete = confirm(`Delete ${selected.length} selected record(s)?`);
   if (!confirmDelete) return;
 
   for (const cb of selected) {
-
-    await deleteDoc(
-      doc(
-        db,
-        "records",
-        cb.value
-      )
-    );
-
+    await deleteDoc(doc(db, "records", cb.value));
   }
 
-  alert(
-    `${selected.length} record(s) deleted successfully.`
-  );
-
+  alert(`${selected.length} record(s) deleted successfully.`);
   await loadRecords(auth.currentUser);
 
   const user = auth.currentUser;
-
   for (const cb of selected) {
-
-    const record =
-      allRecords.find(
-        r => r.id === cb.value
-      );
-
-    if (
-      record &&
-      record.facultyId === user.uid
-    ) {
-
-      await deleteDoc(
-        doc(db, "records", cb.value)
-      );
-
+    const record = allRecords.find(r => r.id === cb.value);
+    if (record && record.facultyId === user.uid) {
+      await deleteDoc(doc(db, "records", cb.value));
     }
-
   }
-
 }
 
+/* =====================================================
+   Institution SGPA Generator Logic (NEW)
+   ===================================================== */
+let institutionSgpaData = [];
+let finalSgpaResults = [];
 
+async function initInstitutionSGPA() {
+    const snapshot = await getDocs(collection(db, "records"));
+    const batches = new Set();
+    const years = new Set();
+    
+    snapshot.forEach(docSnap => {
+        const data = docSnap.data();
+        if(data.batch) batches.add(data.batch);
+        if(data.academicYear) years.add(data.academicYear);
+    });
 
+    const batchSelect = document.getElementById("batch");
+    const yearSelect = document.getElementById("academicYear");
+    
+    if(batchSelect && yearSelect) {
+        batches.forEach(b => {
+            const opt = document.createElement("option"); 
+            opt.value = b; opt.textContent = b; 
+            batchSelect.appendChild(opt);
+        });
+        years.forEach(y => {
+            const opt = document.createElement("option"); 
+            opt.value = y; opt.textContent = y; 
+            yearSelect.appendChild(opt);
+        });
+    }
+}
 
+async function loadGradedRecords() {
+    const academicYear = document.getElementById("academicYear").value;
+    const semester = document.getElementById("semester").value;
+    const batch = document.getElementById("batch").value;
+
+    if (!academicYear || !semester || !batch) {
+        alert("⚠️ Please select Academic Year, Semester, and Batch.");
+        return;
+    }
+
+    const q = query(
+        collection(db, "gradedRecords"),
+        where("batch", "==", batch),
+        where("semester", "==", semester),
+        where("academicYear", "==", academicYear)
+    );
+
+    const snapshot = await getDocs(q);
+    institutionSgpaData = [];
+    snapshot.forEach(docSnap => institutionSgpaData.push(docSnap.data()));
+
+    if (institutionSgpaData.length === 0) {
+        alert("📭 No records found for the selected criteria. Ensure faculty have uploaded and generated grades.");
+        return;
+    }
+
+    const students = [...new Set(institutionSgpaData.map(r => r.rollNo))];
+    const subjects = [...new Set(institutionSgpaData.map(r => r.subject))];
+
+    document.getElementById("totalStudents").textContent = students.length;
+    document.getElementById("totalSubjects").textContent = subjects.length;
+    document.getElementById("completedSubjects").textContent = institutionSgpaData.length;
+    
+    const emptyState = document.getElementById("emptyState");
+    if(emptyState) emptyState.style.display = "none";
+
+    document.getElementById("summarySection").style.display = "grid";
+    document.getElementById("recordsSection").style.display = "block";
+    document.getElementById("resultsSection").style.display = "block";
+
+    const genBtn = document.getElementById("generateBtn");
+    if (genBtn) genBtn.disabled = false;
+
+    let recordsHtml = `<div class="table-wrap"><table>
+        <thead><tr><th>Roll No</th><th>Student Name</th><th>Subject</th><th>Marks</th><th>Grade</th><th>Credits</th></tr></thead><tbody>`;
+    
+    institutionSgpaData.slice(0, 50).forEach(r => {
+        recordsHtml += `<tr>
+            <td><strong>${r.rollNo}</strong></td>
+            <td>${r.name}</td>
+            <td><span class="badge badge-blue">${r.subject}</span></td>
+            <td>${r.marks}</td>
+            <td><span class="grade-${r.grade}" style="font-size:15px; font-weight:bold;">${r.grade}</span></td>
+            <td>${r.credits}</td>
+        </tr>`;
+    });
+    
+    if (institutionSgpaData.length > 50) {
+        recordsHtml += `<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">...and ${institutionSgpaData.length - 50} more records loaded.</td></tr>`;
+    }
+    
+    recordsHtml += `</tbody></table></div>`;
+    document.getElementById("recordsContainer").innerHTML = recordsHtml;
+}
+
+function generateSGPA() {
+    if (institutionSgpaData.length === 0) {
+        alert("⚠️ Please load records first.");
+        return;
+    }
+
+    const studentMap = {};
+
+    institutionSgpaData.forEach(r => {
+        if (!studentMap[r.rollNo]) {
+            studentMap[r.rollNo] = {
+                rollNo: r.rollNo,
+                name: r.name,
+                totalCreditPoints: 0,
+                totalCredits: 0,
+                breakdown: []
+            };
+        }
+
+        const gp = Number(r.gradePoint) || 0;
+        const credits = Number(r.credits) || 0;
+        
+        studentMap[r.rollNo].totalCreditPoints += (gp * credits);
+        studentMap[r.rollNo].totalCredits += credits;
+        studentMap[r.rollNo].breakdown.push(r.subject);
+    });
+
+    finalSgpaResults = Object.values(studentMap).map(s => {
+        return {
+            ...s,
+            sgpa: s.totalCredits > 0 ? (s.totalCreditPoints / s.totalCredits).toFixed(2) : "0.00"
+        };
+    });
+
+    finalSgpaResults.sort((a, b) => b.sgpa - a.sgpa);
+
+    const avgSGPA = (finalSgpaResults.reduce((sum, s) => sum + parseFloat(s.sgpa), 0) / finalSgpaResults.length).toFixed(2);
+    document.getElementById("avgSGPA").textContent = avgSGPA;
+
+    let html = `<div class="table-wrap"><table>
+        <thead><tr><th>Rank</th><th>Roll No</th><th>Student Name</th><th>Subjects Evaluated</th><th>Total Credits</th><th>SGPA</th></tr></thead><tbody>`;
+
+    finalSgpaResults.forEach((s, i) => {
+        html += `<tr>
+            <td><strong>#${i + 1}</strong></td>
+            <td>${s.rollNo}</td>
+            <td>${s.name}</td>
+            <td><span class="badge badge-blue">${s.breakdown.length} Subjects</span></td>
+            <td>${s.totalCredits}</td>
+            <td><strong style="color:var(--primary); font-size:16px;">${s.sgpa}</strong></td>
+        </tr>`;
+    });
+
+    html += `</tbody></table></div>`;
+    document.getElementById("resultsTable").innerHTML = html;
+    document.getElementById("saveSection").style.display = "block";
+    
+    const saveBtn = document.getElementById("saveBtn");
+    if (saveBtn) saveBtn.disabled = false;
+}
+
+async function saveSGPA() {
+    if (finalSgpaResults.length === 0) {
+        alert("⚠️ No SGPA results generated yet.");
+        return;
+    }
+
+    const academicYear = document.getElementById("academicYear").value;
+    const semester = document.getElementById("semester").value;
+    const batch = document.getElementById("batch").value;
+
+    const oldQuery = query(
+        collection(db, "sgpaResults"),
+        where("batch", "==", batch),
+        where("semester", "==", semester),
+        where("academicYear", "==", academicYear)
+    );
+    const oldDocs = await getDocs(oldQuery);
+    for (const d of oldDocs.docs) {
+        await deleteDoc(d.ref);
+    }
+
+    for (const res of finalSgpaResults) {
+        await addDoc(collection(db, "sgpaResults"), {
+            rollNo: res.rollNo,
+            name: res.name,
+            batch,
+            semester,
+            academicYear,
+            sgpa: res.sgpa,
+            totalCredits: res.totalCredits,
+            generatedOn: formatDate(),
+            generatedBy: auth.currentUser.email
+        });
+    }
+    alert("✅ SGPA Results saved successfully!");
+}
+
+/* ── Export Functions to Window ───────────────────── */
 window.facultyRegister = facultyRegister;
 window.facultyLogin = facultyLogin;
 window.institutionLogin = institutionLogin;
@@ -2025,3 +1739,11 @@ window.generateGrades = generateGrades;
 window.exportGrades = exportGrades;
 window.deleteSelectedRecords = deleteSelectedRecords;
 window.saveGradesToFirebase = saveGradesToFirebase;
+window.loadGradedRecords = loadGradedRecords;
+window.generateSGPA = generateSGPA;
+window.saveSGPA = saveSGPA;
+window.logoutInstitution = logoutInstitution;
+window.loadInstitutionRecords = loadInstitutionRecords;
+window.applyFilters = applyFilters;
+window.clearFilters = clearFilters;
+window.exportCSV = exportCSV;

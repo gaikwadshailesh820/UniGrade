@@ -17,7 +17,6 @@
     <div class="nav-links">
       <a href="index.html">Home</a>
       <a href="institution-dashboard.html" class="active-nav">Dashboard</a>
-      <a href="relative-grading.html">Grading</a>
       <a href="institution-login.html" onclick="localStorage.removeItem('institutionEmail');localStorage.removeItem('institutionName')" style="color:#dc2626;">Logout</a>
     </div>
   </div>
@@ -47,19 +46,19 @@
       <button onclick="window.location.href='institution-records.html'">View Records →</button>
     </div>
     <div class="action-card">
-      <h3>📐 Generate Relative Grades</h3>
-      <p>Calculate fair grades using complete class performance and standard deviation.</p>
-      <button onclick="window.location.href='relative-grading.html'">Generate Grades →</button>
-    </div>
-    <div class="action-card">
-      <h3>📊 Grade Analytics</h3>
-      <p>View averages, grade distributions and performance trends by subject.</p>
-      <button onclick="window.location.href='relative-grading.html'">View Analytics →</button>
+      <h3>📝 Generate Final Grades</h3>
+      <p>Generate final SGPA/CGPA results for students based on uploaded marks and grading systems.</p>
+      <button onclick="window.location.href='institution-sgpa.html'">Generate SGPA →</button>
     </div>
     <div class="action-card">
       <h3>📤 Export Final Results</h3>
       <p>Download complete student results as CSV for reporting and archival.</p>
       <button onclick="exportAllResults()">Export CSV →</button>
+    </div>
+    <div class="action-card">
+      <h3>🏛️ Grading Systems</h3>
+      <p>Choose the university grading scale used across records, or define a custom one for your institution.</p>
+      <button onclick="window.location.href='grading-systems.html'">Manage Systems →</button>
     </div>
   </div>
 

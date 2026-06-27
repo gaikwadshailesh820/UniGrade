@@ -39,8 +39,9 @@
         <!-- GRADING EXPLANATION -->
         <div class="card fade-up delay-1"
             style="margin-bottom:28px; border-left:4px solid var(--primary-mid); border-radius:0 var(--radius-lg) var(--radius-lg) 0;">
-            <h3 style="color:var(--primary);font-size:17px;font-weight:700;margin-bottom:14px;">📐 How Relative Grading
+            <h3 style="color:var(--primary);font-size:17px;font-weight:700;margin-bottom:4px;">📐 How Relative Grading
                 Works</h3>
+            <p style="font-size:12.5px;color:var(--text-muted);margin-bottom:14px;">Illustrative example using the Standard Relative Grading profile — the actual bands used depend on the profile selected below.</p>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;">
 
                 <div style="background:rgba(37,99,235,0.06);border-radius:12px;padding:16px;">
@@ -115,6 +116,11 @@
                         <option value="">Select Batch</option>
                     </select>
                 </div>
+            </div>
+            <div>
+                <label>Relative Grading Profile <a href="grading-systems.html" style="float:right;font-weight:600;font-size:12px;color:var(--primary-mid);text-decoration:none;">+ Create custom profile →</a></label>
+                <select id="relativeSystemSelect" style="margin-top:6px;"></select>
+                <p style="font-size:12px;color:var(--text-muted);margin-top:-10px;">Defines how many bands the bell curve is split into and which grade point each z-score band maps to.</p>
             </div>
             <div style="display:flex;gap:12px;margin-top:8px;flex-wrap:wrap;">
                 <button onclick="generateGrades()" style="width:auto;padding:13px 32px;">

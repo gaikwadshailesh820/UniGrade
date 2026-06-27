@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generate SGPA | UniGrade</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+
+    <div class="page-wrapper">
+
+        <nav class="navbar">
+            <div class="nav-container">
+                <a href="index.html" class="logo">🎓 UniGrade</a>
+                <div class="nav-links">
+                    <a href="institution-dashboard.html">← Dashboard</a>
+                    <a href="#" onclick="logoutInstitution()" style="color:#dc2626;">Logout</a>
+                </div>
+            </div>
+        </nav>
+
+        <div class="fade-up" style="margin-bottom:36px;">
+            <p
+                style="font-size:13px; color:var(--text-muted); font-weight:600; text-transform:uppercase; margin-bottom:8px;">
+                Institution Portal
+            </p>
+            <h1 style="font-size:40px; font-weight:800; color:var(--primary);">
+                Generate SGPA
+            </h1>
+            <p style="color:var(--text-muted);">
+                Generate Semester Grade Point Average.
+            </p>
+        </div>
+
+        <section class="card fade-up delay-1">
+            <h2 class="section-title">📂 Batch Details</h2>
+            <div class="grid-4">
+                <div>
+                    <label>Academic Year</label>
+                    <select id="academicYear">
+                        <option value="">Select Academic Year</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Semester</label>
+                    <select id="semester">
+                        <option value="">Select Semester</option>
+                        <option>Sem-1</option>
+                        <option>Sem-2</option>
+                        <option>Sem-3</option>
+                        <option>Sem-4</option>
+                        <option>Sem-5</option>
+                        <option>Sem-6</option>
+                        <option>Sem-7</option>
+                        <option>Sem-8</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Batch</label>
+                    <select id="batch">
+                        <option value="">Select Batch</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Grading System</label>
+                    <select id="gradingSystem" disabled>
+                        <option value="relative">Relative Grading</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="emptyState" class="empty-state fade-up" style="margin-top:30px;">
+                <div class="empty-icon">🎓</div>
+                <h3>Ready to Generate SGPA</h3>
+                <p>
+                    Select Academic Year, Semester and Batch,
+                    then click <strong>Load Graded Records</strong>.
+                </p>
+            </div>
+            <div style="margin-top:24px;">
+                <button class="btn-primary" onclick="loadGradedRecords()" style="width:auto;">
+                    🔍 Load Graded Records
+                </button>
+            </div>
+
+        </section>
+
+        <section id="summarySection" class="stats-grid" style="display:none; margin-top:24px;">
+            <div class="stat-card">
+                <h2 id="totalStudents">0</h2>
+                <p>Students</p>
+            </div>
+            <div class="stat-card">
+                <h2 id="totalSubjects">0</h2>
+                <p>Subjects</p>
+            </div>
+            <div class="stat-card">
+                <h2 id="completedSubjects">0</h2>
+                <p>Subject Records</p>
+            </div>
+            <div class="stat-card">
+                <h2 id="avgSGPA">0.00</h2>
+                <p>Average SGPA</p>
+            </div>
+        </section>
+
+        <section id="validationSection" class="card" style="display:none; margin-top:24px;">
+            <h2 class="section-title">✅ Validation Report</h2>
+            <div id="validationContainer"></div>
+        </section>
+
+        <section id="recordsSection" class="card" style="display:none; margin-top:24px;">
+            <h2 class="section-title">📋 Graded Records</h2>
+            <div id="recordsContainer"></div>
+        </section>  
+
+        <section id="resultsSection" class="card" style="display:none; margin-top:24px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <h2 class="section-title">📊 SGPA Preview</h2>
+                <button id="generateBtn" class="btn-primary" onclick="generateSGPA()" style="width:auto;" disabled>
+
+                    🎓 Generate SGPA
+
+                </button>
+            </div>
+            <div id="resultsTable"></div>
+        </section>
+
+        <section id="saveSection" class="card" style="display:none; margin-top:24px;">
+            <button id="saveBtn" class="btn-success" onclick="saveSGPA()" disabled>
+
+                💾 Save SGPA Results
+
+            </button>
+        </section>
+
+    </div>
+
+    <script type="module" src="script.js"></script>
+</body>
+
+</html>

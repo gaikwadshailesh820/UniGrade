@@ -43,6 +43,18 @@
         Practical, or both.</p>
     </div>
 
+    <!-- Universal Grading System Selector -->
+    <div class="card fade-up delay-1" style="margin-bottom:24px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:16px;">
+        <div style="flex:1;min-width:240px;">
+          <label>🏛️ Grading System</label>
+          <select id="gradingSystemSelect" style="margin-bottom:0;"></select>
+        </div>
+        <a href="grading-systems.html" class="btn-secondary" style="width:auto;display:inline-block;padding:13px 22px;text-decoration:none;border-radius:var(--radius-sm);font-weight:600;font-size:14px;color:var(--text-main);">⚙️ Manage Grading Systems →</a>
+      </div>
+      <p style="font-size:12px;color:var(--text-muted);margin-top:10px;margin-bottom:0;">Choose a university's grading scale, or build your own in the Grading Systems manager. SGPA below is calculated using whichever system is selected here.</p>
+    </div>
+
     <!-- Evaluation Scheme Reference -->
     <div class="eval-scheme fade-up delay-1" style="margin-bottom:24px;">
       <h4>📋 Evaluation Scheme</h4>
@@ -153,16 +165,8 @@
 
       <!-- Grade reference -->
       <div class="card" style="margin-bottom:24px;">
-        <h3 style="color:var(--primary);font-size:15px;font-weight:700;margin-bottom:14px;">Grade Point Reference</h3>
-        <div style="display:flex;flex-wrap:wrap;gap:8px;">
-          <span class="badge badge-purple">≥90 → 10 (O)</span>
-          <span class="badge badge-green">≥80 → 9 (A+)</span>
-          <span class="badge badge-green">≥70 → 8 (A)</span>
-          <span class="badge badge-blue">≥60 → 7 (B+)</span>
-          <span class="badge badge-blue">≥50 → 6 (B)</span>
-          <span class="badge badge-blue">≥40 → 5 (C)</span>
-          <span class="badge badge-red">&lt;40 → 0 (F)</span>
-        </div>
+        <h3 style="color:var(--primary);font-size:15px;font-weight:700;margin-bottom:14px;">Grade Point Reference <span id="gradePointRefSystemName" style="font-weight:500;color:var(--text-muted);font-size:12px;"></span></h3>
+        <div id="gradePointReference" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
       </div>
 
       <div class="result-box">
