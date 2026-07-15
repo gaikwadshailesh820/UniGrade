@@ -37,7 +37,8 @@ import {
   deleteDoc,
   query,
   where,
-  updateDoc
+  updateDoc,
+  writeBatch
 } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
 
 /* ── Utility ─────────────────────────────────────── */
@@ -535,7 +536,7 @@ async function initInstitutionDashboard() {
   snapshot.forEach((doc) => {
     allRecords.push(doc.data());
   });
-  
+
   const students = [...new Set(allRecords.map(r => r.rollNo))];
   const subjects = [...new Set(allRecords.map(r => r.subject))];
   const batches = [...new Set(allRecords.map(r => r.batch))];
@@ -743,11 +744,11 @@ function calculateSGPA() {
 
   for (const card of cards) {
     const c = Number(card.querySelector('.credits')?.value);
-    
+
     // --> DIVIDE BY ZERO BUG FIX APPLIED HERE <-- //
-    if (!c || c <= 0) { 
-        alert('⚠️ Please enter valid credits (greater than 0) for all subjects to calculate SGPA.'); 
-        return; 
+    if (!c || c <= 0) {
+      alert('⚠️ Please enter valid credits (greater than 0) for all subjects to calculate SGPA.');
+      return;
     }
 
     const type = card.querySelector('.examTypeSelect')?.value || 'theory';
@@ -864,115 +865,131 @@ function showPreview(examType) {
   $el('previewSection').scrollIntoView({ behavior: 'smooth' });
 }
 
+let isSavingRecords = false; // guards against duplicate inserts from double-clicks / re-entrant calls
+
 async function saveRecords() {
   if (!uploadedData.length) { showAlert('uploadAlert', 'error', '⚠️ No data to save.'); return; }
 
-  const credits = Number($el('subjectCredits')?.value) || 0;
-  const subjectName = $el('subjectName')?.value.trim() || 'Unknown';
-  const subjectCode = $el('subjectCode')?.value.trim() || '';
-  const batchName = $el('batchName')?.value.trim() || 'Unknown';
-  const semester = $el('semesterInput')?.value.trim() || '';
-  const academicYear = $el('academicYear')?.value.trim() || '';
-  const examType = $el('examTypeUpload')?.value || 'theory';
+  if (isSavingRecords) return; // a save is already in progress — ignore this call
+  isSavingRecords = true;
 
-  const facultyId = auth.currentUser.uid;
-  const facultyEmail = auth.currentUser.email;
-  const enriched = uploadedData.map(row => {
-    const get = (...keys) => {
-      for (const k of keys) {
-        const v = row[k];
-        if (v !== undefined && v !== null && v !== '') return v;
-      }
-      return null;
-    };
+  // Disable whichever element triggered this, so it can't be clicked again mid-save
+  const saveBtn = document.querySelector('[onclick="saveRecords()"]') || $el('saveRecordsBtn');
+  if (saveBtn) saveBtn.disabled = true;
 
-    const rollNo = String(get('rollNo', 'Roll No', 'ROLL NO', 'RollNo', 'roll_no') || '—');
-    const name = String(get('name', 'Name', 'Student Name', 'STUDENT NAME') || '—');
+  try {
+    const credits = Number($el('subjectCredits')?.value) || 0;
+    const subjectName = $el('subjectName')?.value.trim() || 'Unknown';
+    const subjectCode = $el('subjectCode')?.value.trim() || '';
+    const batchName = $el('batchName')?.value.trim() || 'Unknown';
+    const semester = $el('semesterInput')?.value.trim() || '';
+    const academicYear = $el('academicYear')?.value.trim() || '';
+    const examType = $el('examTypeUpload')?.value || 'theory';
 
-    // Theory marks
-    const ca = Number(get('ca', 'CA', 'Continuous Assessment', 'ContinuousAssessment') || 0);
-    const midsem = Number(get('midsem', 'Midsem', 'midterm', 'Midterm', 'Mid Term') || 0);
-    const endsem = Number(get('endsem', 'Endsem', 'endterm', 'End Term', 'EndTerm') || 0);
-    const theoryTotal = ca + midsem + endsem || Number(get('marks', 'Marks', 'MARKS', 'Total') || 0);
+    const facultyId = auth.currentUser.uid;
+    const facultyEmail = auth.currentUser.email;
+    const enriched = uploadedData.map(row => {
+      const get = (...keys) => {
+        for (const k of keys) {
+          const v = row[k];
+          if (v !== undefined && v !== null && v !== '') return v;
+        }
+        return null;
+      };
 
-    // Practical marks
-    const labManual = Number(get('labManual', 'Lab Manual', 'LabManual') || 0);
-    const labAssessment = Number(get('labAssessment', 'Lab Assessment', 'LabAssessment') || 0);
-    const viva = Number(get('viva', 'Viva', 'Viva-voce', 'InternalViva') || 0);
-    const endPractical = Number(get('endPractical', 'End Practical', 'EndPractical', 'EndSem Practical') || 0);
-    const practicalTotal = labManual + labAssessment + viva + endPractical;
+      const rollNo = String(get('rollNo', 'Roll No', 'ROLL NO', 'RollNo', 'roll_no') || '—');
+      const name = String(get('name', 'Name', 'Student Name', 'STUDENT NAME') || '—');
 
-    let finalMarks;
-    if (examType === 'theory') finalMarks = theoryTotal;
-    else if (examType === 'practical') finalMarks = practicalTotal;
-    else finalMarks = (theoryTotal * 0.6) + (practicalTotal * 0.4);
+      // Theory marks
+      const ca = Number(get('ca', 'CA', 'Continuous Assessment', 'ContinuousAssessment') || 0);
+      const midsem = Number(get('midsem', 'Midsem', 'midterm', 'Midterm', 'Mid Term') || 0);
+      const endsem = Number(get('endsem', 'Endsem', 'endterm', 'End Term', 'EndTerm') || 0);
+      const theoryTotal = ca + midsem + endsem || Number(get('marks', 'Marks', 'MARKS', 'Total') || 0);
 
-    return {
-      rollNo, name,
-      ca, midsem, endsem, theoryTotal,
-      labManual, labAssessment, viva, endPractical, practicalTotal,
-      marks: Math.round(finalMarks * 10) / 10,
-      maxMarks: 100,
-      examType,
-      subject: subjectName,
-      subjectCode,
-      credits,
-      batch: batchName,
-      semester,
-      academicYear,
-      uploadedOn: formatDate(),
-      facultyId,
-      facultyEmail
-    };
-  });
+      // Practical marks
+      const labManual = Number(get('labManual', 'Lab Manual', 'LabManual') || 0);
+      const labAssessment = Number(get('labAssessment', 'Lab Assessment', 'LabAssessment') || 0);
+      const viva = Number(get('viva', 'Viva', 'Viva-voce', 'InternalViva') || 0);
+      const endPractical = Number(get('endPractical', 'End Practical', 'EndPractical', 'EndSem Practical') || 0);
+      const practicalTotal = labManual + labAssessment + viva + endPractical;
 
-  const oldRecordsQuery = query(
-    collection(db, "records"),
-    where("facultyId", "==", facultyId),
-    where("subject", "==", subjectName),
-    where("batch", "==", batchName),
-    where("semester", "==", semester),
-    where("academicYear", "==", academicYear)
-  );
+      let finalMarks;
+      if (examType === 'theory') finalMarks = theoryTotal;
+      else if (examType === 'practical') finalMarks = practicalTotal;
+      else finalMarks = (theoryTotal * 0.6) + (practicalTotal * 0.4);
 
-  const oldRecords = await getDocs(oldRecordsQuery);
-  const isUpdate = !oldRecords.empty;
-
-  for (const docSnap of oldRecords.docs) {
-    await deleteDoc(docSnap.ref);
-  }
-
-  for (const record of enriched) {
-    await addDoc(
-      collection(db, "records"),
-      {
-        ...record,
+      return {
+        rollNo, name,
+        ca, midsem, endsem, theoryTotal,
+        labManual, labAssessment, viva, endPractical, practicalTotal,
+        marks: Math.round(finalMarks * 10) / 10,
+        maxMarks: 100,
+        examType,
+        subject: subjectName,
+        subjectCode,
+        credits,
+        batch: batchName,
+        semester,
+        academicYear,
+        uploadedOn: formatDate(),
         facultyId,
         facultyEmail
-      }
+      };
+    });
+
+    const oldRecordsQuery = query(
+      collection(db, "records"),
+      where("facultyId", "==", facultyId),
+      where("subject", "==", subjectName),
+      where("batch", "==", batchName),
+      where("semester", "==", semester),
+      where("academicYear", "==", academicYear)
     );
-  }
 
-  const history = JSON.parse(localStorage.getItem('uploadHistory') || '[]');
-  history.push({ subject: subjectName, batch: batchName, examType, count: enriched.length, date: formatDate() });
-  localStorage.setItem('uploadHistory', JSON.stringify(history));
+    const oldRecords = await getDocs(oldRecordsQuery);
+    const isUpdate = !oldRecords.empty;
 
-  if (isUpdate) {
-    showAlert(
-      "uploadAlert",
-      "success",
-      `♻️ Existing records found.<br><br>
+    for (const docSnap of oldRecords.docs) {
+      await deleteDoc(docSnap.ref);
+    }
+
+    for (const record of enriched) {
+      await addDoc(
+        collection(db, "records"),
+        {
+          ...record,
+          facultyId,
+          facultyEmail
+        }
+      );
+    }
+
+    const history = JSON.parse(localStorage.getItem('uploadHistory') || '[]');
+    history.push({ subject: subjectName, batch: batchName, examType, count: enriched.length, date: formatDate() });
+    localStorage.setItem('uploadHistory', JSON.stringify(history));
+
+    if (isUpdate) {
+      showAlert(
+        "uploadAlert",
+        "success",
+        `♻️ Existing records found.<br><br>
      ${enriched.length} records have been replaced successfully.<br><br>
      Please regenerate and save Relative Grades.`
-    );
-  } else {
-    showAlert(
-      "uploadAlert",
-      "success",
-      `✅ ${enriched.length} records uploaded successfully!`
-    );
+      );
+    } else {
+      showAlert(
+        "uploadAlert",
+        "success",
+        `✅ ${enriched.length} records uploaded successfully!`
+      );
+    }
+    clearPreview();
+  } catch (err) {
+    showAlert('uploadAlert', 'error', '⚠️ ' + (err?.message || 'Could not save records.'));
+  } finally {
+    isSavingRecords = false;
+    if (saveBtn) saveBtn.disabled = false;
   }
-  clearPreview();
 }
 
 function clearPreview() {
@@ -1066,6 +1083,14 @@ document.addEventListener('DOMContentLoaded', () => {
     onAuthStateChanged(auth, (user) => {
       if (!user) { window.location.href = 'institution-login.html'; return; }
       loadInstitutionRecords();
+    });
+  }
+
+  if (page === 'view-sgpa.html') {
+    onAuthStateChanged(auth, (user) => {
+      if (!user) { window.location.href = 'institution-login.html'; return; }
+      // Populate your dropdowns here if needed
+      initInstitutionSGPA(); // Reuse your existing dropdown initialization
     });
   }
 
@@ -1343,15 +1368,15 @@ function populateFilters() {
 }
 
 function clearFilters() {
-    const searchInput = document.getElementById('searchInput');
-    const subjectFilter = document.getElementById('subjectFilter');
-    const batchFilter = document.getElementById('batchFilter');
+  const searchInput = document.getElementById('searchInput');
+  const subjectFilter = document.getElementById('subjectFilter');
+  const batchFilter = document.getElementById('batchFilter');
 
-    if (searchInput) searchInput.value = '';
-    if (subjectFilter) subjectFilter.value = '';
-    if (batchFilter) batchFilter.value = '';
+  if (searchInput) searchInput.value = '';
+  if (subjectFilter) subjectFilter.value = '';
+  if (batchFilter) batchFilter.value = '';
 
-    renderTable(allRecords);
+  renderTable(allRecords);
 }
 
 function applyFilters() {
@@ -1360,9 +1385,9 @@ function applyFilters() {
   const batch = document.getElementById('batchFilter')?.value || "";
 
   const filtered = allRecords.filter(r => {
-    const matchSearch = !search || 
-                        (r.name?.toLowerCase().includes(search)) || 
-                        (r.rollNo?.toLowerCase().includes(search));
+    const matchSearch = !search ||
+      (r.name?.toLowerCase().includes(search)) ||
+      (r.rollNo?.toLowerCase().includes(search));
     const matchSubject = !subject || r.subject === subject;
     const matchBatch = !batch || r.batch === batch;
     return matchSearch && matchSubject && matchBatch;
@@ -1458,24 +1483,24 @@ function exportCSV() {
 }
 
 async function loadInstitutionRecords() {
-    const container = document.getElementById('recordsContainer');
-    
-    // 1. CLEAR the array before fetching new data
-    allRecords = []; 
-    
-    try {
-        const snapshot = await getDocs(collection(db, "records"));
-        // 2. Map fresh data
-        allRecords = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  const container = document.getElementById('recordsContainer');
 
-        console.log("Records loaded:", allRecords.length);
-        
-        updateStats();
-        populateFilters();
-        renderTable(allRecords);
-    } catch (e) {
-        console.error("Error loading records:", e);
-    }
+  // 1. CLEAR the array before fetching new data
+  allRecords = [];
+
+  try {
+    const snapshot = await getDocs(collection(db, "records"));
+    // 2. Map fresh data
+    allRecords = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    console.log("Records loaded:", allRecords.length);
+
+    updateStats();
+    populateFilters();
+    renderTable(allRecords);
+  } catch (e) {
+    console.error("Error loading records:", e);
+  }
 }
 
 async function confirmDelete() {
@@ -1500,24 +1525,30 @@ function setupSelectAll() {
 
 async function deleteSelectedRecords() {
   const selected = document.querySelectorAll(".recordCheckbox:checked");
-  if (selected.length === 0) { alert("Please select at least one record."); return; }
-
-  const confirmDelete = confirm(`Delete ${selected.length} selected record(s)?`);
-  if (!confirmDelete) return;
-
-  for (const cb of selected) {
-    await deleteDoc(doc(db, "records", cb.value));
+  if (selected.length === 0) {
+    alert("Please select at least one record.");
+    return;
   }
 
-  alert(`${selected.length} record(s) deleted successfully.`);
-  await loadRecords(auth.currentUser);
+  const confirmDelete = confirm(`Are you sure you want to permanently delete these ${selected.length} records from the database?`);
+  if (!confirmDelete) return;
 
-  const user = auth.currentUser;
-  for (const cb of selected) {
-    const record = allRecords.find(r => r.id === cb.value);
-    if (record && record.facultyId === user.uid) {
-      await deleteDoc(doc(db, "records", cb.value));
+  try {
+    // Iterate through selected IDs and delete them from Firestore
+    for (const cb of selected) {
+      const recordId = cb.value;
+      // 1. Delete from Firebase
+      await deleteDoc(doc(db, "records", recordId));
     }
+
+    alert("Records deleted successfully from the database.");
+
+    // 2. Refresh the data from Firestore to clear the UI
+    await loadInstitutionRecords();
+
+  } catch (error) {
+    console.error("Error deleting records: ", error);
+    alert("Failed to delete records. Check console for details.");
   }
 }
 
@@ -1528,81 +1559,156 @@ let institutionSgpaData = [];
 let finalSgpaResults = [];
 
 async function initInstitutionSGPA() {
-    const snapshot = await getDocs(collection(db, "records"));
-    const batches = new Set();
-    const years = new Set();
-    
-    snapshot.forEach(docSnap => {
-        const data = docSnap.data();
-        if(data.batch) batches.add(data.batch);
-        if(data.academicYear) years.add(data.academicYear);
+
+  const page = location.pathname.split("/").pop();
+
+  const collectionName =
+    page === "view-sgpa.html"
+      ? "sgpaResults"
+      : "records";
+
+  const snapshot = await getDocs(
+    collection(db, collectionName)
+  );
+
+  const batches = new Set();
+  const years = new Set();
+  const semesters = new Set();
+
+  snapshot.forEach((docSnap) => {
+
+    const data = docSnap.data();
+
+    if (data.batch)
+      batches.add(data.batch);
+
+    if (data.academicYear)
+      years.add(data.academicYear);
+
+    if (data.semester)
+      semesters.add(data.semester);
+
+  });
+
+  const batchSelect =
+    document.getElementById("batch");
+
+  const yearSelect =
+    document.getElementById("academicYear");
+
+  const semesterSelect =
+    document.getElementById("semester");
+
+
+  if (batchSelect) {
+
+    batchSelect.innerHTML =
+      '<option value="">Select Batch</option>';
+
+    batches.forEach((b) => {
+
+      const option =
+        document.createElement("option");
+
+      option.value = b;
+      option.textContent = b;
+
+      batchSelect.appendChild(option);
+
     });
 
-    const batchSelect = document.getElementById("batch");
-    const yearSelect = document.getElementById("academicYear");
-    
-    if(batchSelect && yearSelect) {
-        batches.forEach(b => {
-            const opt = document.createElement("option"); 
-            opt.value = b; opt.textContent = b; 
-            batchSelect.appendChild(opt);
-        });
-        years.forEach(y => {
-            const opt = document.createElement("option"); 
-            opt.value = y; opt.textContent = y; 
-            yearSelect.appendChild(opt);
-        });
-    }
+  }
+
+
+  if (yearSelect) {
+
+    yearSelect.innerHTML =
+      '<option value="">Select Academic Year</option>';
+
+    years.forEach((y) => {
+
+      const option =
+        document.createElement("option");
+
+      option.value = y;
+      option.textContent = y;
+
+      yearSelect.appendChild(option);
+
+    });
+
+  }
+
+
+  if (semesterSelect) {
+
+    semesterSelect.innerHTML =
+      '<option value="">Select Semester</option>';
+
+    semesters.forEach((s) => {
+
+      const option =
+        document.createElement("option");
+
+      option.value = s;
+      option.textContent = s;
+
+      semesterSelect.appendChild(option);
+
+    });
+
+  }
+
 }
 
 async function loadGradedRecords() {
-    const academicYear = document.getElementById("academicYear").value;
-    const semester = document.getElementById("semester").value;
-    const batch = document.getElementById("batch").value;
+  const academicYear = document.getElementById("academicYear").value;
+  const semester = document.getElementById("semester").value;
+  const batch = document.getElementById("batch").value;
 
-    if (!academicYear || !semester || !batch) {
-        alert("⚠️ Please select Academic Year, Semester, and Batch.");
-        return;
-    }
+  if (!academicYear || !semester || !batch) {
+    alert("⚠️ Please select Academic Year, Semester, and Batch.");
+    return;
+  }
 
-    const q = query(
-        collection(db, "gradedRecords"),
-        where("batch", "==", batch),
-        where("semester", "==", semester),
-        where("academicYear", "==", academicYear)
-    );
+  const q = query(
+    collection(db, "gradedRecords"),
+    where("batch", "==", batch),
+    where("semester", "==", semester),
+    where("academicYear", "==", academicYear)
+  );
 
-    const snapshot = await getDocs(q);
-    institutionSgpaData = [];
-    snapshot.forEach(docSnap => institutionSgpaData.push(docSnap.data()));
+  const snapshot = await getDocs(q);
+  institutionSgpaData = [];
+  snapshot.forEach(docSnap => institutionSgpaData.push(docSnap.data()));
 
-    if (institutionSgpaData.length === 0) {
-        alert("📭 No records found for the selected criteria. Ensure faculty have uploaded and generated grades.");
-        return;
-    }
+  if (institutionSgpaData.length === 0) {
+    alert("📭 No records found for the selected criteria. Ensure faculty have uploaded and generated grades.");
+    return;
+  }
 
-    const students = [...new Set(institutionSgpaData.map(r => r.rollNo))];
-    const subjects = [...new Set(institutionSgpaData.map(r => r.subject))];
+  const students = [...new Set(institutionSgpaData.map(r => r.rollNo))];
+  const subjects = [...new Set(institutionSgpaData.map(r => r.subject))];
 
-    document.getElementById("totalStudents").textContent = students.length;
-    document.getElementById("totalSubjects").textContent = subjects.length;
-    document.getElementById("completedSubjects").textContent = institutionSgpaData.length;
-    
-    const emptyState = document.getElementById("emptyState");
-    if(emptyState) emptyState.style.display = "none";
+  document.getElementById("totalStudents").textContent = students.length;
+  document.getElementById("totalSubjects").textContent = subjects.length;
+  document.getElementById("completedSubjects").textContent = institutionSgpaData.length;
 
-    document.getElementById("summarySection").style.display = "grid";
-    document.getElementById("recordsSection").style.display = "block";
-    document.getElementById("resultsSection").style.display = "block";
+  const emptyState = document.getElementById("emptyState");
+  if (emptyState) emptyState.style.display = "none";
 
-    const genBtn = document.getElementById("generateBtn");
-    if (genBtn) genBtn.disabled = false;
+  document.getElementById("summarySection").style.display = "grid";
+  document.getElementById("recordsSection").style.display = "block";
+  document.getElementById("resultsSection").style.display = "block";
 
-    let recordsHtml = `<div class="table-wrap"><table>
+  const genBtn = document.getElementById("generateBtn");
+  if (genBtn) genBtn.disabled = false;
+
+  let recordsHtml = `<div class="table-wrap"><table>
         <thead><tr><th>Roll No</th><th>Student Name</th><th>Subject</th><th>Marks</th><th>Grade</th><th>Credits</th></tr></thead><tbody>`;
-    
-    institutionSgpaData.slice(0, 50).forEach(r => {
-        recordsHtml += `<tr>
+
+  institutionSgpaData.slice(0, 50).forEach(r => {
+    recordsHtml += `<tr>
             <td><strong>${r.rollNo}</strong></td>
             <td>${r.name}</td>
             <td><span class="badge badge-blue">${r.subject}</span></td>
@@ -1610,60 +1716,60 @@ async function loadGradedRecords() {
             <td><span class="grade-${r.grade}" style="font-size:15px; font-weight:bold;">${r.grade}</span></td>
             <td>${r.credits}</td>
         </tr>`;
-    });
-    
-    if (institutionSgpaData.length > 50) {
-        recordsHtml += `<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">...and ${institutionSgpaData.length - 50} more records loaded.</td></tr>`;
-    }
-    
-    recordsHtml += `</tbody></table></div>`;
-    document.getElementById("recordsContainer").innerHTML = recordsHtml;
+  });
+
+  if (institutionSgpaData.length > 50) {
+    recordsHtml += `<tr><td colspan="6" style="text-align:center; color:var(--text-muted);">...and ${institutionSgpaData.length - 50} more records loaded.</td></tr>`;
+  }
+
+  recordsHtml += `</tbody></table></div>`;
+  document.getElementById("recordsContainer").innerHTML = recordsHtml;
 }
 
 function generateSGPA() {
-    if (institutionSgpaData.length === 0) {
-        alert("⚠️ Please load records first.");
-        return;
+  if (institutionSgpaData.length === 0) {
+    alert("⚠️ Please load records first.");
+    return;
+  }
+
+  const studentMap = {};
+
+  institutionSgpaData.forEach(r => {
+    if (!studentMap[r.rollNo]) {
+      studentMap[r.rollNo] = {
+        rollNo: r.rollNo,
+        name: r.name,
+        totalCreditPoints: 0,
+        totalCredits: 0,
+        breakdown: []
+      };
     }
 
-    const studentMap = {};
+    const gp = Number(r.gradePoint) || 0;
+    const credits = Number(r.credits) || 0;
 
-    institutionSgpaData.forEach(r => {
-        if (!studentMap[r.rollNo]) {
-            studentMap[r.rollNo] = {
-                rollNo: r.rollNo,
-                name: r.name,
-                totalCreditPoints: 0,
-                totalCredits: 0,
-                breakdown: []
-            };
-        }
+    studentMap[r.rollNo].totalCreditPoints += (gp * credits);
+    studentMap[r.rollNo].totalCredits += credits;
+    studentMap[r.rollNo].breakdown.push(r.subject);
+  });
 
-        const gp = Number(r.gradePoint) || 0;
-        const credits = Number(r.credits) || 0;
-        
-        studentMap[r.rollNo].totalCreditPoints += (gp * credits);
-        studentMap[r.rollNo].totalCredits += credits;
-        studentMap[r.rollNo].breakdown.push(r.subject);
-    });
+  finalSgpaResults = Object.values(studentMap).map(s => {
+    return {
+      ...s,
+      sgpa: s.totalCredits > 0 ? (s.totalCreditPoints / s.totalCredits).toFixed(2) : "0.00"
+    };
+  });
 
-    finalSgpaResults = Object.values(studentMap).map(s => {
-        return {
-            ...s,
-            sgpa: s.totalCredits > 0 ? (s.totalCreditPoints / s.totalCredits).toFixed(2) : "0.00"
-        };
-    });
+  finalSgpaResults.sort((a, b) => b.sgpa - a.sgpa);
 
-    finalSgpaResults.sort((a, b) => b.sgpa - a.sgpa);
+  const avgSGPA = (finalSgpaResults.reduce((sum, s) => sum + parseFloat(s.sgpa), 0) / finalSgpaResults.length).toFixed(2);
+  document.getElementById("avgSGPA").textContent = avgSGPA;
 
-    const avgSGPA = (finalSgpaResults.reduce((sum, s) => sum + parseFloat(s.sgpa), 0) / finalSgpaResults.length).toFixed(2);
-    document.getElementById("avgSGPA").textContent = avgSGPA;
-
-    let html = `<div class="table-wrap"><table>
+  let html = `<div class="table-wrap"><table>
         <thead><tr><th>Rank</th><th>Roll No</th><th>Student Name</th><th>Subjects Evaluated</th><th>Total Credits</th><th>SGPA</th></tr></thead><tbody>`;
 
-    finalSgpaResults.forEach((s, i) => {
-        html += `<tr>
+  finalSgpaResults.forEach((s, i) => {
+    html += `<tr>
             <td><strong>#${i + 1}</strong></td>
             <td>${s.rollNo}</td>
             <td>${s.name}</td>
@@ -1671,51 +1777,221 @@ function generateSGPA() {
             <td>${s.totalCredits}</td>
             <td><strong style="color:var(--primary); font-size:16px;">${s.sgpa}</strong></td>
         </tr>`;
-    });
+  });
 
-    html += `</tbody></table></div>`;
-    document.getElementById("resultsTable").innerHTML = html;
-    document.getElementById("saveSection").style.display = "block";
-    
-    const saveBtn = document.getElementById("saveBtn");
-    if (saveBtn) saveBtn.disabled = false;
+  html += `</tbody></table></div>`;
+  document.getElementById("resultsTable").innerHTML = html;
+  document.getElementById("saveSection").style.display = "block";
+
+  const saveBtn = document.getElementById("saveBtn");
+  if (saveBtn) saveBtn.disabled = false;
 }
 
 async function saveSGPA() {
-    if (finalSgpaResults.length === 0) {
-        alert("⚠️ No SGPA results generated yet.");
-        return;
-    }
+  if (finalSgpaResults.length === 0) {
+    alert("⚠️ No SGPA results generated yet.");
+    return;
+  }
 
-    const academicYear = document.getElementById("academicYear").value;
-    const semester = document.getElementById("semester").value;
-    const batch = document.getElementById("batch").value;
+  const academicYear = document.getElementById("academicYear").value;
+  const semester = document.getElementById("semester").value;
+  const batch = document.getElementById("batch").value;
 
-    const oldQuery = query(
-        collection(db, "sgpaResults"),
-        where("batch", "==", batch),
-        where("semester", "==", semester),
-        where("academicYear", "==", academicYear)
-    );
-    const oldDocs = await getDocs(oldQuery);
-    for (const d of oldDocs.docs) {
-        await deleteDoc(d.ref);
-    }
+  // 1. Initialize the batch
+  const batchOp = writeBatch(db);
 
-    for (const res of finalSgpaResults) {
-        await addDoc(collection(db, "sgpaResults"), {
-            rollNo: res.rollNo,
-            name: res.name,
-            batch,
-            semester,
-            academicYear,
-            sgpa: res.sgpa,
-            totalCredits: res.totalCredits,
-            generatedOn: formatDate(),
-            generatedBy: auth.currentUser.email
-        });
-    }
+  // 2. Query old records
+  const oldQuery = query(
+    collection(db, "sgpaResults"),
+    where("batch", "==", batch),
+    where("semester", "==", semester),
+    where("academicYear", "==", academicYear)
+  );
+  const oldDocs = await getDocs(oldQuery);
+
+  // 3. Queue deletions in the batch
+  oldDocs.docs.forEach(d => batchOp.delete(d.ref));
+
+  // 4. Queue additions in the batch
+  finalSgpaResults.forEach(res => {
+    const newDocRef = doc(collection(db, "sgpaResults"));
+    batchOp.set(newDocRef, {
+      rollNo: res.rollNo,
+      name: res.name,
+      batch,
+      semester,
+      academicYear,
+      sgpa: res.sgpa,
+      totalCredits: res.totalCredits,
+      generatedOn: formatDate(),
+      generatedBy: auth.currentUser.email
+    });
+  });
+
+  // 5. Commit the batch atomically
+  try {
+    await batchOp.commit();
     alert("✅ SGPA Results saved successfully!");
+  } catch (error) {
+    console.error("Batch save failed:", error);
+    alert("⚠️ Failed to save SGPA Results. Please try again.");
+  }
+}
+
+async function loadSavedSGPA() {
+
+  const academicYear = document.getElementById("academicYear").value;
+  const semester = document.getElementById("semester").value;
+  const batch = document.getElementById("batch").value;
+
+  if (!academicYear || !semester || !batch) {
+    alert("Please select all filters.");
+    return;
+  }
+
+  const q = query(
+    collection(db, "sgpaResults"),
+    where("batch", "==", batch),
+    where("semester", "==", semester),
+    where("academicYear", "==", academicYear)
+  );
+
+  const snapshot = await getDocs(q);
+
+  if (snapshot.empty) {
+    alert("No saved SGPA records found.");
+    return;
+  }
+
+  const results = [];
+
+  snapshot.forEach((doc) => {
+    results.push(doc.data());
+  });
+
+
+  // Hide Empty State
+
+  document.getElementById("emptyState").style.display = "none";
+
+
+  // Summary Cards
+
+  const sgpas = results.map(r => Number(r.sgpa));
+
+  document.getElementById("totalStudents").textContent =
+    results.length;
+
+  document.getElementById("averageSGPA").textContent =
+    (sgpas.reduce((a, b) => a + b, 0) / sgpas.length).toFixed(2);
+
+  document.getElementById("highestSGPA").textContent =
+    Math.max(...sgpas).toFixed(2);
+
+  document.getElementById("lowestSGPA").textContent =
+    Math.min(...sgpas).toFixed(2);
+
+  document.getElementById("summarySection").style.display = "grid";
+
+
+  // Results Table
+
+  let html = `
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Roll No</th>
+                    <th>Name</th>
+                    <th>SGPA</th>
+                    <th>Credits</th>
+                    <th>Generated On</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+  results.forEach((student) => {
+
+    html += `
+        <tr class="sgpa-row">
+            <td>${student.rollNo}</td>
+            <td>${student.name}</td>
+            <td><strong>${student.sgpa}</strong></td>
+            <td>${student.totalCredits}</td>
+            <td>${student.generatedOn}</td>
+        </tr>
+    `;
+
+  });
+
+  html += `
+            </tbody>
+        </table>
+    </div>
+    `;
+
+  document.getElementById("resultsTable").innerHTML = html;
+
+  document.getElementById("resultsSection").style.display = "block";
+
+
+  // Show Export Section
+
+  document.getElementById("exportSection").style.display = "block";
+
+}
+
+function applySGPAFilters() {
+
+    const search =
+        document
+            .getElementById("sgpaSearchInput")
+            ?.value
+            .toLowerCase()
+            .trim() || "";
+
+    const rows =
+        document.querySelectorAll(".sgpa-row");
+
+
+    rows.forEach((row) => {
+
+        const text =
+            row.textContent.toLowerCase();
+
+        row.style.display =
+            text.includes(search)
+                ? ""
+                : "none";
+
+    });
+
+}
+
+
+function clearSGPAFilters() {
+
+    const searchInput =
+        document.getElementById("sgpaSearchInput");
+
+    if (searchInput) {
+
+        searchInput.value = "";
+
+    }
+
+
+    const rows =
+        document.querySelectorAll(".sgpa-row");
+
+
+    rows.forEach((row) => {
+
+        row.style.display = "";
+
+    });
+
 }
 
 /* ── Export Functions to Window ───────────────────── */
@@ -1747,3 +2023,7 @@ window.loadInstitutionRecords = loadInstitutionRecords;
 window.applyFilters = applyFilters;
 window.clearFilters = clearFilters;
 window.exportCSV = exportCSV;
+window.loadSavedSGPA = loadSavedSGPA;
+window.initInstitutionSGPA = initInstitutionSGPA;
+window.applySGPAFilters = applySGPAFilters;
+window.clearSGPAFilters = clearSGPAFilters;

@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Archived SGPA Results | UniGrade</title>
+
+    <link rel="stylesheet" href="style.css">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+
+</head>
+
+<body>
+
+    <!-- NAVBAR -->
+
+    <nav class="navbar">
+
+        <div class="nav-container">
+
+            <a href="index.html" class="logo">
+
+                🎓 UniGrade
+
+            </a>
+
+            <div class="nav-links">
+
+                <a href="institution-dashboard.html">
+
+                    Dashboard
+
+                </a>
+
+                <a href="view-sgpa.html" class="active-nav">
+
+                    Archived Results
+
+                </a>
+
+                <a href="institution-login.html" onclick="localStorage.removeItem('institutionEmail');
+                    localStorage.removeItem('institutionName')" style="color:#dc2626;">
+
+                    Logout
+
+                </a>
+
+            </div>
+
+        </div>
+
+    </nav>
+
+
+    <div class="dashboard-container">
+
+
+        <!-- PAGE HEADER -->
+
+        <div class="dashboard-top fade-up">
+
+            <p style="font-size:13px;
+                color:var(--text-muted);
+                font-weight:600;
+                text-transform:uppercase;
+                letter-spacing:0.5px;
+                margin-bottom:8px;">
+
+                Institution Portal
+
+            </p>
+
+            <h1 class="dashboard-title">
+
+                Archived SGPA Results
+
+            </h1>
+
+            <p class="dashboard-subtitle">
+
+                View previously generated semester results across
+                batches and academic years.
+
+            </p>
+
+        </div>
+
+
+        <!-- FILTER CARD -->
+
+        <div class="card fade-up delay-1">
+
+            <h2 class="section-title">
+
+                Filter Results
+
+            </h2>
+
+            <div class="grid-4">
+
+                <div>
+
+                    <label>
+
+                        Academic Year
+
+                    </label>
+
+                    <select id="academicYear">
+
+                        <option value="">
+
+                            Select Academic Year
+
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <div>
+
+                    <label>
+
+                        Semester
+
+                    </label>
+
+                    <select id="semester">
+
+                        <option value="">
+
+                            Select Semester
+
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <div>
+
+                    <label>
+
+                        Batch
+
+                    </label>
+
+                    <select id="batch">
+
+                        <option value="">
+
+                            Select Batch
+
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <div style="display:flex;
+                    align-items:flex-end;">
+
+                    <button class="btn-primary" onclick="loadSavedSGPA()">
+
+                        View Results →
+
+                    </button>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- EMPTY STATE -->
+
+        <div id="emptyState" class="empty-state fade-up" style="margin-top:30px;">
+
+            <div class="empty-icon">
+
+                📂
+
+            </div>
+
+            <h3>
+
+                No Results Loaded
+
+            </h3>
+
+            <p>
+
+                Select Academic Year, Semester and Batch
+                to view archived SGPA results.
+
+            </p>
+
+        </div>
+
+
+
+        <!-- SUMMARY CARDS -->
+
+        <section id="summarySection" class="stats-grid" style="display:none; margin-top:30px;">
+
+            <div class="stat-card">
+
+                <h2 id="totalStudents">
+
+                    0
+
+                </h2>
+
+                <p>
+
+                    Total Students
+
+                </p>
+
+            </div>
+
+
+            <div class="stat-card">
+
+                <h2 id="averageSGPA">
+
+                    0.00
+
+                </h2>
+
+                <p>
+
+                    Average SGPA
+
+                </p>
+
+            </div>
+
+
+            <div class="stat-card">
+
+                <h2 id="highestSGPA">
+
+                    0.00
+
+                </h2>
+
+                <p>
+
+                    Highest SGPA
+
+                </p>
+
+            </div>
+
+
+            <div class="stat-card">
+
+                <h2 id="lowestSGPA">
+
+                    0.00
+
+                </h2>
+
+                <p>
+
+                    Lowest SGPA
+
+                </p>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- STUDENT RESULTS TABLE -->
+
+        <section id="resultsSection" class="card" style="display:none; margin-top:30px;">
+
+            <div style="
+                display:flex;
+                justify-content:space-between;
+                align-items:center;
+                margin-bottom:20px;">
+
+                <h2 class="section-title">
+
+                    Semester Results
+
+                </h2>
+
+            </div>
+            <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;">
+
+                <input type="text" id="sgpaSearchInput" placeholder="Search by Roll No or Student Name..."
+                    style="flex:1;min-width:250px;">
+
+                <button class="btn-primary" onclick="applySGPAFilters()" style="width:auto;">
+
+                    Apply Filters
+
+                </button>
+
+                <button class="btn-secondary" onclick="clearSGPAFilters()" style="width:auto;">
+
+                    Clear Filters
+
+                </button>
+
+            </div>
+
+            <div id="resultsTable">
+
+            </div>
+
+        </section>
+
+
+
+        <!-- EXPORT OPTIONS -->
+
+        <section id="exportSection" class="card" style="display:none; margin-top:30px;">
+
+            <h2 class="section-title">
+
+                Export Options
+
+            </h2>
+
+
+            <div class="actions-grid">
+
+                <div class="action-card">
+
+                    <h3>
+
+                        📤 Export CSV
+
+                    </h3>
+
+                    <p>
+
+                        Download semester results as a CSV file.
+
+                    </p>
+
+                    <button onclick="exportSGPAResults()">
+
+                        Export CSV →
+
+                    </button>
+
+                </div>
+
+
+
+                <div class="action-card">
+
+                    <h3>
+
+                        📄 Download Report
+
+                    </h3>
+
+                    <p>
+
+                        Download a semester-wise SGPA report.
+
+                    </p>
+
+                    <button disabled>
+
+                        Coming Soon
+
+                    </button>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+    </div>
+
+
+
+    <!-- FOOTER -->
+
+    <footer class="footer">
+
+        <div class="footer-content">
+
+            <h3>
+
+                🎓 UniGrade
+
+            </h3>
+
+            <p>
+
+                Modern Academic Evaluation Platform
+
+            </p>
+
+            <p class="copyright">
+
+                © 2026 UniGrade. All Rights Reserved.
+
+            </p>
+
+        </div>
+
+    </footer>
+
+
+
+    <script type="module" src="script.js"></script>
+
+</body>
+
+</html>
