@@ -304,6 +304,136 @@ async function saveProfile() {
   }, 3000);
 }
 
+async function loadInstitutionProfile() {
+
+  onAuthStateChanged(auth, async (user) => {
+
+    if (!user) {
+
+      window.location.href = "institution-login.html";
+      return;
+
+    }
+
+    const institutionDoc =
+      await getDoc(
+        doc(db, "institution", user.uid)
+      );
+
+    if (!institutionDoc.exists()) {
+
+      showAlert(
+        "profileAlert",
+        "error",
+        "⚠️ Institution profile not found."
+      );
+
+      return;
+
+    }
+
+    const profile = institutionDoc.data();
+
+    document.getElementById("profileName").textContent =
+      profile.name || "";
+
+    document.getElementById("profileEmail").textContent =
+      profile.email || "";
+
+    document.getElementById("editName").value =
+      profile.name || "";
+
+    document.getElementById("editEmail").value =
+      profile.email || "";
+
+    document.getElementById("editUniversity").value =
+      profile.university || "";
+
+    document.getElementById("editPhone").value =
+      profile.phone || "";
+
+  });
+
+}
+
+async function saveInstitutionProfile() {
+
+  const name =
+    document.getElementById("editName")
+      .value.trim();
+
+  const university =
+    document.getElementById("editUniversity")
+      .value.trim();
+
+  const phone =
+    document.getElementById("editPhone")
+      .value.trim();
+
+  const alertBox =
+    document.getElementById("profileAlert");
+
+  const user = auth.currentUser;
+
+
+  if (!user) return;
+
+
+  if (!name) {
+
+    alertBox.className =
+      "alert alert-error";
+
+    alertBox.textContent =
+      "⚠️ Institution Name is required.";
+
+    alertBox.style.display =
+      "flex";
+
+    return;
+
+  }
+
+
+  await updateDoc(
+
+    doc(db, "institution", user.uid),
+
+    {
+      name: name,
+      university: university,
+      phone: phone
+    }
+
+  );
+
+
+  document.getElementById("profileName")
+    .textContent = name;
+
+  document.getElementById("profileEmail")
+    .textContent = user.email;
+
+
+  alertBox.className =
+    "alert alert-success";
+
+  alertBox.textContent =
+    "✅ Profile updated successfully.";
+
+  alertBox.style.display =
+    "flex";
+
+
+  setTimeout(() => {
+
+    alertBox.style.display =
+      "none";
+
+  }, 3000);
+
+}
+
 async function changePassword() {
   const curr = document.getElementById("currPass").value;
   const next = document.getElementById("newPass").value;
@@ -1054,6 +1184,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (page === 'profile.html') {
     loadFacultyProfile();
+  }
+
+  if (page === 'institution-profile.html') {
+    loadInstitutionProfile();
   }
 
   if (page === 'faculty-dashboard.html') {
@@ -1944,55 +2078,71 @@ async function loadSavedSGPA() {
 
 function applySGPAFilters() {
 
-    const search =
-        document
-            .getElementById("sgpaSearchInput")
-            ?.value
-            .toLowerCase()
-            .trim() || "";
+  const search =
+    document
+      .getElementById("sgpaSearchInput")
+      ?.value
+      .toLowerCase()
+      .trim() || "";
 
-    const rows =
-        document.querySelectorAll(".sgpa-row");
+  const rows =
+    document.querySelectorAll(".sgpa-row");
 
 
-    rows.forEach((row) => {
+  rows.forEach((row) => {
 
-        const text =
-            row.textContent.toLowerCase();
+    const text =
+      row.textContent.toLowerCase();
 
-        row.style.display =
-            text.includes(search)
-                ? ""
-                : "none";
+    row.style.display =
+      text.includes(search)
+        ? ""
+        : "none";
 
-    });
+  });
 
 }
 
 
 function clearSGPAFilters() {
 
-    const searchInput =
-        document.getElementById("sgpaSearchInput");
+  const searchInput =
+    document.getElementById("sgpaSearchInput");
 
-    if (searchInput) {
+  if (searchInput) {
 
-        searchInput.value = "";
+    searchInput.value = "";
 
-    }
-
-
-    const rows =
-        document.querySelectorAll(".sgpa-row");
+  }
 
 
-    rows.forEach((row) => {
+  const rows =
+    document.querySelectorAll(".sgpa-row");
 
-        row.style.display = "";
 
-    });
+  rows.forEach((row) => {
+
+    row.style.display = "";
+
+  });
 
 }
+
+function togglePassword(id, icon) {
+
+    const input = document.getElementById(id);
+
+    if (input.type === "password") {
+        input.type = "text";
+        icon.textContent = "🙈";
+    } else {
+        input.type = "password";
+        icon.textContent = "👁️";
+    }
+
+}
+
+window.togglePassword = togglePassword;
 
 /* ── Export Functions to Window ───────────────────── */
 window.facultyRegister = facultyRegister;
@@ -2027,3 +2177,7 @@ window.loadSavedSGPA = loadSavedSGPA;
 window.initInstitutionSGPA = initInstitutionSGPA;
 window.applySGPAFilters = applySGPAFilters;
 window.clearSGPAFilters = clearSGPAFilters;
+window.loadInstitutionProfile = loadInstitutionProfile;
+window.saveInstitutionProfile = saveInstitutionProfile;
+window.loadFacultyProfile = loadFacultyProfile;
+window.togglePassword = togglePassword;

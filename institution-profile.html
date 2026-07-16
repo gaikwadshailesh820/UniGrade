@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Institution Profile | UniGrade</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <!-- NAVBAR -->
+
+    <nav class="navbar">
+
+        <div class="nav-container">
+
+            <a href="index.html" class="logo">
+
+                🎓 UniGrade
+
+            </a>
+
+            <div class="nav-links">
+
+                <a href="institution-dashboard.html">
+
+                    ← Dashboard
+
+                </a>
+
+                <a href="#" onclick="logoutInstitution()">
+
+                    Logout
+
+                </a>
+
+            </div>
+
+        </div>
+
+    </nav>
+
+
+    <div class="page-wrapper">
+
+        <div style="max-width:700px; margin:0 auto;">
+
+
+            <!-- PAGE HEADER -->
+
+            <div style="margin-bottom:36px;" class="fade-up">
+
+                <p style="
+                font-size:13px;
+                color:var(--text-muted);
+                font-weight:600;
+                letter-spacing:0.5px;
+                text-transform:uppercase;
+                margin-bottom:8px;">
+
+                    Institution Portal
+
+                </p>
+
+
+                <h1 style="
+                font-size:40px;
+                font-weight:800;
+                color:var(--primary);
+                letter-spacing:-1px;
+                margin-bottom:8px;">
+
+                    Institution Profile
+
+                </h1>
+
+            </div>
+
+
+            <!-- PROFILE CARD -->
+
+            <div class="card fade-up delay-1" style="text-align:center; margin-bottom:24px; padding:40px;">
+
+                <div class="profile-avatar">
+
+                    🏛️
+
+                </div>
+
+
+                <h2 id="profileName" style="color:var(--primary);
+                    font-size:24px;
+                    font-weight:800;
+                    margin-bottom:6px;">
+
+                </h2>
+
+
+                <p id="profileEmail" style="color:var(--text-muted);
+                    font-size:15px;
+                    margin:0;">
+
+                </p>
+
+
+                <span class="badge badge-green" style="margin-top:12px;">
+
+                    Institution
+
+                </span>
+
+            </div>
+
+
+
+            <!-- ACCOUNT INFORMATION -->
+
+            <div class="card fade-up delay-2" style="margin-bottom:24px;">
+
+                <h3 style="
+                color:var(--primary);
+                font-size:18px;
+                font-weight:700;
+                margin-bottom:24px;">
+
+                    Account Information
+
+                </h3>
+
+
+                <div id="profileAlert" style="display:none;">
+
+                </div>
+
+
+                <label>
+
+                    Institution Name
+
+                </label>
+
+                <input type="text" id="editName" placeholder="DY Patil International University">
+
+
+                <label>
+
+                    Email Address
+
+                </label>
+
+                <input type="email" id="editEmail" readonly>
+
+
+                <label>
+
+                    University Name
+
+                </label>
+
+                <input type="text" id="editUniversity" placeholder="Savitribai Phule Pune University">
+
+
+                <label>
+
+                    Contact Number
+
+                </label>
+
+                <input type="tel" id="editPhone" placeholder="+91 9876543210">
+
+
+                <button onclick="saveInstitutionProfile()" style="width:100%; margin-top:4px;">
+
+                    Save Changes
+
+                </button>
+
+            </div>
+
+
+
+            <!-- CHANGE PASSWORD -->
+
+            <div class="card fade-up delay-3">
+
+                <h3 style="
+                color:var(--primary);
+                font-size:18px;
+                font-weight:700;
+                margin-bottom:24px;">
+
+                    Change Password
+
+                </h3>
+
+
+                <label>
+
+                    Current Password
+
+                </label>
+
+                <div class="password-field">
+
+                    <input type="password" id="currPass" placeholder="Enter current password">
+
+                    <span class="password-toggle" onclick="togglePassword('currPass', this)">
+
+                        👁️
+
+                    </span>
+
+                </div>
+
+
+                <label>
+
+                    New Password
+
+                </label>
+
+                <div class="password-field">
+
+                    <input type="password" id="newPass" placeholder="Minimum 8 characters">
+
+                    <span class="password-toggle" onclick="togglePassword('newPass', this)">
+
+                        👁️
+
+                    </span>
+
+                </div>
+
+
+                <label>
+
+                    Confirm New Password
+
+                </label>
+
+                <div class="password-field">
+
+                    <input type="password" id="confPass" placeholder="Repeat new password">
+
+                    <span class="password-toggle" onclick="togglePassword('confPass', this)">
+
+                        👁️
+
+                    </span>
+
+                </div>
+
+                <button onclick="changePassword()" style="width:100%; margin-top:4px;">
+
+                    Update Password
+
+                </button>
+
+            </div>
+
+
+        </div>
+
+    </div>
+
+
+    <script type="module" src="script.js"></script>
+
+</body>
+
+</html>
