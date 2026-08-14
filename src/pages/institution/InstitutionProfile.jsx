@@ -20,11 +20,11 @@ function InstitutionProfile() {
     website: '',
     departments: '',
     programs: '',
-    academicYear: '2025-2026',
+    academicYear: '',
     address: '',
     city: '',
     state: '',
-    country: 'India',
+    country: '',
     postalCode: '',
     logo: null
   })
@@ -45,7 +45,7 @@ function InstitutionProfile() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
-  // Load institution profile from Firestore with localStorage fallback
+  // Load institution profile from Firestore with localStorage cache fallback
   useEffect(() => {
     async function loadInstitutionData() {
       if (!user) return
@@ -56,27 +56,27 @@ function InstitutionProfile() {
         const cached = localStorage.getItem(localKey)
         let loadedData = cached ? JSON.parse(cached) : {}
 
-        const instDoc = await getDoc(doc(db, 'institution', user.uid))
+        const instDoc = await getDoc(doc(db, 'institutions', user.uid))
         if (instDoc.exists()) {
           const remoteData = instDoc.data()
           loadedData = { ...loadedData, ...remoteData }
         }
 
         const data = {
-          name: loadedData.name || userProfile?.name || 'DY Patil International University',
+          name: loadedData.name || userProfile?.name || '',
           email: loadedData.email || user.email || '',
-          phone: loadedData.phone || '+91 20 2765 3055',
-          institutionCode: loadedData.institutionCode || `INST-${user.uid.substring(0, 6).toUpperCase()}`,
-          university: loadedData.university || 'State Autonomous University',
-          website: loadedData.website || 'https://www.dypiu.ac.in',
-          departments: loadedData.departments || 'Computer Science, AI & Data Science, Mechanical, Bio-Engineering',
-          programs: loadedData.programs || 'B.Tech, M.Tech, BCA, MCA, Ph.D.',
-          academicYear: loadedData.academicYear || '2025-2026',
-          address: loadedData.address || 'Sector 29, Nigdi Pradhikaran, Akurdi',
-          city: loadedData.city || 'Pune',
-          state: loadedData.state || 'Maharashtra',
-          country: loadedData.country || 'India',
-          postalCode: loadedData.postalCode || '411044',
+          phone: loadedData.phone || '',
+          institutionCode: loadedData.institutionCode || '',
+          university: loadedData.university || '',
+          website: loadedData.website || '',
+          departments: loadedData.departments || '',
+          programs: loadedData.programs || '',
+          academicYear: loadedData.academicYear || '',
+          address: loadedData.address || '',
+          city: loadedData.city || '',
+          state: loadedData.state || '',
+          country: loadedData.country || '',
+          postalCode: loadedData.postalCode || '',
           logo: loadedData.logo || loadedData.photoURL || null
         }
 
@@ -173,7 +173,7 @@ function InstitutionProfile() {
 
       // Update Firestore document
       try {
-        await updateDoc(doc(db, 'institution', user.uid), {
+        await updateDoc(doc(db, 'institutions', user.uid), {
           name: profile.name.trim(),
           phone: profile.phone.trim(),
           institutionCode: profile.institutionCode.trim(),
@@ -243,6 +243,8 @@ function InstitutionProfile() {
     setAlert({ type: 'success', message: '✅ Password validated! (For self-service reset, use the Forgot Password workflow).' })
   }
 
+  const isProfileUnconfigured = !profile.name && !loading
+
   return (
     <main className="page-wrapper" style={{ maxWidth: 960 }}>
       {/* Header Badge */}
@@ -255,6 +257,26 @@ function InstitutionProfile() {
           Manage university affiliation, departments, accreditation information, and campus location.
         </p>
       </div>
+
+      {/* Unconfigured Setup Prompt */}
+      {isProfileUnconfigured && !isEditing && (
+        <div className="card fade-up" style={{ borderLeft: '4px solid #2563eb', background: '#eff6ff', marginBottom: 24 }}>
+          <h3 style={{ color: 'var(--primary)', fontSize: 16, margin: '0 0 6px' }}>
+            ℹ️ Welcome to UniGrade V2! Complete Your Institution Setup
+          </h3>
+          <p style={{ color: '#334155', fontSize: 13.5, margin: '0 0 12px' }}>
+            Your institution profile is currently empty. Click the button below to add your institution name, affiliation code, approved departments, and campus location.
+          </p>
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() => setIsEditing(true)}
+            style={{ width: 'auto', padding: '8px 18px', fontSize: 13 }}
+          >
+            ⚙️ Set Up Institution Profile Now
+          </button>
+        </div>
+      )}
 
       {/* Alert Messages */}
       {alert && (
@@ -270,7 +292,7 @@ function InstitutionProfile() {
           <div className="avatar-uploader-wrap">
             <div className="logo-square">
               {logoPreview ? (
-                <img src={logoPreview} alt={profile.name} />
+                <img src={logoPreview} alt={profile.name || 'Institution Logo'} />
               ) : (
                 <span>🏛️</span>
               )}
@@ -296,10 +318,13 @@ function InstitutionProfile() {
           {/* Identity Meta */}
           <div className="profile-hero-meta">
             <h2>{profile.name || 'Institution Administrator'}</h2>
-            <p>{profile.email} • {profile.city ? `${profile.city}, ${profile.state}` : 'Campus'}</p>
+            <p>
+              {profile.email || user?.email}
+              {profile.city ? ` • ${profile.city}${profile.state ? `, ${profile.state}` : ''}` : ''}
+            </p>
             <div className="profile-meta-badges">
-              <span className="badge badge-purple">{profile.university}</span>
-              <span className="badge badge-blue">Code: {profile.institutionCode}</span>
+              {profile.university && <span className="badge badge-purple">{profile.university}</span>}
+              {profile.institutionCode && <span className="badge badge-blue">Code: {profile.institutionCode}</span>}
               <span className="badge badge-green">● Verified Organization</span>
             </div>
           </div>
@@ -375,7 +400,7 @@ function InstitutionProfile() {
         </div>
         {missingFields.length > 0 && (
           <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '8px 0 0' }}>
-            💡 Complete profile details: <strong>{missingFields.join(', ')}</strong>
+            💡 Missing details: <strong>{missingFields.join(', ')}</strong>
           </p>
         )}
       </div>
@@ -397,7 +422,7 @@ function InstitutionProfile() {
                   type="text"
                   value={profile.name}
                   onChange={(e) => setProfile({ ...profile, name: e.target.value })}
-                  placeholder="e.g. DY Patil International University"
+                  placeholder="Enter Official Institution Name"
                   required
                 />
               </div>
@@ -408,7 +433,7 @@ function InstitutionProfile() {
                   type="text"
                   value={profile.institutionCode}
                   onChange={(e) => setProfile({ ...profile, institutionCode: e.target.value })}
-                  placeholder="e.g. DYPIU-PUNE-01"
+                  placeholder="e.g. UNIV-2026"
                 />
               </div>
               <div>
@@ -428,7 +453,7 @@ function InstitutionProfile() {
                   type="tel"
                   value={profile.phone}
                   onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
-                  placeholder="+91 20 2765 3055"
+                  placeholder="e.g. +91 20 1234 5678"
                 />
               </div>
               <div>
@@ -446,7 +471,7 @@ function InstitutionProfile() {
             <div className="profile-info-grid">
               <div className="profile-field-view">
                 <span className="field-label">Institution Name</span>
-                <span className="field-value">{profile.name || '—'}</span>
+                <span className="field-value">{profile.name || '— (Not Configured)'}</span>
               </div>
               <div className="profile-field-view">
                 <span className="field-label">Institution Code</span>
@@ -489,7 +514,7 @@ function InstitutionProfile() {
                   type="text"
                   value={profile.university}
                   onChange={(e) => setProfile({ ...profile, university: e.target.value })}
-                  placeholder="e.g. State Autonomous / SPPU"
+                  placeholder="e.g. Autonomous / State University"
                 />
               </div>
               <div>
@@ -509,7 +534,7 @@ function InstitutionProfile() {
                   type="text"
                   value={profile.departments}
                   onChange={(e) => setProfile({ ...profile, departments: e.target.value })}
-                  placeholder="e.g. Computer Science, AI, Mechanical, Civil"
+                  placeholder="e.g. Computer Science, Mechanical, Civil"
                 />
               </div>
               <div>
@@ -560,7 +585,7 @@ function InstitutionProfile() {
                   type="text"
                   value={profile.address}
                   onChange={(e) => setProfile({ ...profile, address: e.target.value })}
-                  placeholder="e.g. Sector 29, Nigdi Pradhikaran, Akurdi"
+                  placeholder="e.g. 123 University Road, Campus Area"
                 />
               </div>
               <div>
@@ -600,7 +625,7 @@ function InstitutionProfile() {
                   type="text"
                   value={profile.postalCode}
                   onChange={(e) => setProfile({ ...profile, postalCode: e.target.value })}
-                  placeholder="e.g. 411044"
+                  placeholder="e.g. 411001"
                 />
               </div>
             </div>
@@ -608,7 +633,11 @@ function InstitutionProfile() {
             <div className="profile-info-grid">
               <div className="profile-field-view" style={{ gridColumn: 'span 2' }}>
                 <span className="field-label">Campus Address</span>
-                <span className="field-value">{profile.address ? `${profile.address}, ${profile.city}, ${profile.state} - ${profile.postalCode}, ${profile.country}` : '—'}</span>
+                <span className="field-value">
+                  {profile.address
+                    ? `${profile.address}${profile.city ? `, ${profile.city}` : ''}${profile.state ? `, ${profile.state}` : ''}${profile.postalCode ? ` - ${profile.postalCode}` : ''}${profile.country ? `, ${profile.country}` : ''}`
+                    : '—'}
+                </span>
               </div>
               <div className="profile-field-view">
                 <span className="field-label">City</span>
@@ -616,7 +645,11 @@ function InstitutionProfile() {
               </div>
               <div className="profile-field-view">
                 <span className="field-label">State &amp; Country</span>
-                <span className="field-value">{profile.state ? `${profile.state}, ${profile.country}` : '—'}</span>
+                <span className="field-value">
+                  {profile.state || profile.country
+                    ? `${profile.state}${profile.state && profile.country ? ', ' : ''}${profile.country}`
+                    : '—'}
+                </span>
               </div>
             </div>
           )}
@@ -662,7 +695,7 @@ function InstitutionProfile() {
           </div>
           <div className="profile-field-view">
             <span className="field-label">Authentication</span>
-            <span className="field-value">Firebase Secure Auth</span>
+            <span className="field-value">Firebase Secure Auth (UniGradeV2)</span>
           </div>
         </div>
 

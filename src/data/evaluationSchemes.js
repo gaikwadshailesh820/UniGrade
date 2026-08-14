@@ -149,6 +149,8 @@ export const BUILT_IN_EVALUATION_SCHEMES = [
   }
 ]
 
+export const BUILT_IN_SCHEMES = BUILT_IN_EVALUATION_SCHEMES
+
 /* ── Storage Helpers ──────────────────────────────── */
 function readJSON(key, fallback) {
   try {

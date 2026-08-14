@@ -11,18 +11,16 @@
 
 import { createContext, useContext, useState, useEffect } from 'react'
 import { auth, db } from '../firebase'
+import { onAuthStateChanged } from 'firebase/auth'
+import { doc, getDoc } from 'firebase/firestore'
 import {
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged,
-  sendPasswordResetEmail
-} from 'firebase/auth'
-import {
-  doc,
-  setDoc,
-  getDoc
-} from 'firebase/firestore'
+  loginUser,
+  registerUser,
+  logoutUser,
+  resetUserPassword,
+  changeUserPassword
+} from '../services/authService'
+import { seedInstitutionData } from '../services/seedService'
 
 const AuthContext = createContext(null)
 
@@ -44,20 +42,35 @@ export function AuthProvider({ children }) {
       if (firebaseUser) {
         setUser(firebaseUser)
 
-        // Try to load profile from faculty first, then institution
-        const facultyDoc = await getDoc(doc(db, 'faculty', firebaseUser.uid))
-        if (facultyDoc.exists()) {
-          setUserProfile(facultyDoc.data())
-          setUserRole('faculty')
-        } else {
-          const instDoc = await getDoc(doc(db, 'institution', firebaseUser.uid))
-          if (instDoc.exists()) {
-            setUserProfile(instDoc.data())
-            setUserRole('institution')
+        try {
+          // Check faculty collection first
+          const facultyDoc = await getDoc(doc(db, 'faculty', firebaseUser.uid))
+          if (facultyDoc.exists()) {
+            setUserProfile(facultyDoc.data())
+            setUserRole('faculty')
           } else {
-            setUserProfile(null)
-            setUserRole(null)
+            // Check institutions collection
+            const instDoc = await getDoc(doc(db, 'institutions', firebaseUser.uid))
+            if (instDoc.exists()) {
+              setUserProfile(instDoc.data())
+              setUserRole('institution')
+              // Trigger institutional seeding if needed
+              seedInstitutionData(firebaseUser.uid)
+            } else {
+              // Fallback to base user doc
+              const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid))
+              if (userDoc.exists()) {
+                const uData = userDoc.data()
+                setUserProfile(uData)
+                setUserRole(uData.role || null)
+              } else {
+                setUserProfile(null)
+                setUserRole(null)
+              }
+            }
           }
+        } catch (err) {
+          console.error('Error hydrating profile onAuthStateChanged:', err)
         }
       } else {
         setUser(null)
@@ -72,64 +85,24 @@ export function AuthProvider({ children }) {
 
   /* ── Login ────────────────────────────────────── */
   async function login(email, password, role) {
-    const userCredential = await signInWithEmailAndPassword(auth, email, password)
-    const uid = userCredential.user.uid
-
-    const collection = role === 'institution' ? 'institution' : 'faculty'
-    const profileDoc = await getDoc(doc(db, collection, uid))
-
-    if (!profileDoc.exists()) {
-      await signOut(auth)
-      throw new Error(
-        role === 'institution'
-          ? 'Access denied. You are not an institution administrator.'
-          : 'Faculty profile not found.'
-      )
+    const res = await loginUser(email, password, role)
+    setUser(res.user)
+    setUserProfile(res.profile)
+    setUserRole(res.role)
+    if (res.role === 'institution') {
+      seedInstitutionData(res.user.uid)
     }
-
-    // Faculty approval check
-    if (role === 'faculty' && !profileDoc.data().approved) {
-      await signOut(auth)
-      throw new Error('Your account is waiting for institution approval.')
-    }
-
-    setUserProfile(profileDoc.data())
-    setUserRole(role)
-    return profileDoc.data()
+    return res.profile
   }
 
   /* ── Register ─────────────────────────────────── */
   async function register(data, role) {
-    const { email, password, ...profileData } = data
-
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password)
-    const uid = userCredential.user.uid
-
-    const collection = role === 'institution' ? 'institution' : 'faculty'
-
-    const profileDoc = {
-      ...profileData,
-      email,
-      role,
-      createdAt: new Date().toLocaleDateString('en-IN', {
-        day: '2-digit', month: 'short', year: 'numeric'
-      })
-    }
-
-    // Faculty accounts start as unapproved
-    if (role === 'faculty') {
-      profileDoc.approved = false
-    }
-
-    await setDoc(doc(db, collection, uid), profileDoc)
-
-    // Sign out after registration — user must log in
-    await signOut(auth)
+    return await registerUser(data, role)
   }
 
   /* ── Logout ───────────────────────────────────── */
   async function logout() {
-    await signOut(auth)
+    await logoutUser()
     setUser(null)
     setUserProfile(null)
     setUserRole(null)
@@ -137,7 +110,12 @@ export function AuthProvider({ children }) {
 
   /* ── Password Reset ───────────────────────────── */
   async function resetPassword(email) {
-    await sendPasswordResetEmail(auth, email)
+    return await resetUserPassword(email)
+  }
+
+  /* ── Update Password ──────────────────────────── */
+  async function updatePassword(newPass) {
+    return await changeUserPassword(newPass)
   }
 
   const value = {
@@ -148,12 +126,13 @@ export function AuthProvider({ children }) {
     login,
     register,
     logout,
-    resetPassword
+    resetPassword,
+    updatePassword
   }
 
   return (
     <AuthContext.Provider value={value}>
-      {children}
+      {!loading && children}
     </AuthContext.Provider>
   )
 }

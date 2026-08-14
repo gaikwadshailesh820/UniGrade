@@ -1,8 +1,6 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import {
   getAllSystems,
-  getAbsoluteSystems,
-  getRelativeSystems,
   getCustomSystems,
   getActiveAbsoluteSystem,
   setActiveAbsoluteSystem,
@@ -15,8 +13,15 @@ import {
   validateSystem,
   createEmptySystem
 } from '../data/gradingSystems'
+import {
+  getGradingSystems as fetchFirestoreGradingSystems,
+  saveGradingSystem as saveFirestoreGradingSystem,
+  deleteGradingSystem as deleteFirestoreGradingSystem
+} from '../services/gradingService'
+import { useAuth } from '../contexts/AuthContext'
 
 export function useGradingSystems() {
+  const { user } = useAuth()
   const [activeAbsolute, setActiveAbsolute] = useState(getActiveAbsoluteSystem)
   const [activeRelative, setActiveRelative] = useState(getActiveRelativeSystem)
   const [customSystems, setCustomSystems] = useState(getCustomSystems)
@@ -29,6 +34,22 @@ export function useGradingSystems() {
     setAllSystems(getAllSystems())
   }, [])
 
+  useEffect(() => {
+    let isMounted = true
+    async function loadRemoteGrading() {
+      try {
+        const remote = await fetchFirestoreGradingSystems(user?.uid)
+        if (isMounted && Array.isArray(remote) && remote.length > 0) {
+          setAllSystems(remote)
+        }
+      } catch {
+        // fallback
+      }
+    }
+    loadRemoteGrading()
+    return () => { isMounted = false }
+  }, [user?.uid])
+
   const selectActiveAbsolute = useCallback((id) => {
     setActiveAbsoluteSystem(id)
     refresh()
@@ -39,30 +60,47 @@ export function useGradingSystems() {
     refresh()
   }, [refresh])
 
-  const saveSystem = useCallback((system) => {
+  const saveSystem = useCallback(async (system) => {
     const saved = saveCustomSystem(system)
+    try {
+      await saveFirestoreGradingSystem({ ...system, institutionId: user?.uid || 'custom' })
+    } catch (err) {
+      console.warn('Firestore save grading system non-fatal:', err)
+    }
     refresh()
     return saved
-  }, [refresh])
+  }, [user, refresh])
 
-  const deleteSystem = useCallback((id) => {
+  const deleteSystem = useCallback(async (id) => {
     deleteCustomSystem(id)
+    try {
+      await deleteFirestoreGradingSystem(id)
+    } catch (err) {
+      console.warn('Firestore delete grading system non-fatal:', err)
+    }
     refresh()
   }, [refresh])
 
-  const duplicate = useCallback((id, newName) => {
+  const duplicate = useCallback(async (id, newName) => {
     const copy = duplicateSystem(id, newName)
+    if (copy) {
+      try {
+        await saveFirestoreGradingSystem({ ...copy, institutionId: user?.uid || 'custom' })
+      } catch (err) {
+        console.warn('Firestore duplicate grading system non-fatal:', err)
+      }
+    }
     refresh()
     return copy
-  }, [refresh])
+  }, [user, refresh])
 
   return {
     activeAbsolute,
     activeRelative,
     customSystems,
     allSystems,
-    absoluteSystems: getAbsoluteSystems(),
-    relativeSystems: getRelativeSystems(),
+    absoluteSystems: allSystems.filter(s => s.mode === 'absolute'),
+    relativeSystems: allSystems.filter(s => s.mode === 'relative'),
     selectActiveAbsolute,
     selectActiveRelative,
     saveSystem,

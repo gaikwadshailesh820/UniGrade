@@ -46,7 +46,8 @@ function InstitutionRegister() {
           email: email.trim(),
           city: city.trim(),
           university: university.trim() || name.trim(),
-          phone: ''
+          phone: '',
+          password
         },
         'institution'
       )

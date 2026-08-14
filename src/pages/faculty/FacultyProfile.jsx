@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
-import { db } from '../../firebase'
+import { db, storage } from '../../firebase'
 import { doc, getDoc, updateDoc } from 'firebase/firestore'
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 
 const MAX_IMAGE_SIZE = 2 * 1024 * 1024 // 2MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
@@ -12,6 +13,7 @@ function FacultyProfile() {
 
   // Profile Form State
   const [profile, setProfile] = useState({
+    uid: '',
     name: '',
     email: '',
     phone: '',
@@ -25,13 +27,18 @@ function FacultyProfile() {
     joiningDate: '',
     assignedSubjects: '',
     assignedBatches: '',
-    academicYear: '2025-2026',
-    avatar: null
+    academicYear: '',
+    avatarURL: null,
+    institutionId: '',
+    role: 'faculty',
+    createdAt: '',
+    updatedAt: ''
   })
 
   const [initialProfile, setInitialProfile] = useState(null)
   const [isEditing, setIsEditing] = useState(false)
   const [avatarPreview, setAvatarPreview] = useState(null)
+  const [selectedImageFile, setSelectedImageFile] = useState(null)
 
   // Password fields
   const [currPass, setCurrPass] = useState('')
@@ -45,7 +52,7 @@ function FacultyProfile() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
-  // Load profile data from Firestore with localStorage fallback
+  // Load profile data from Firestore using user.uid
   useEffect(() => {
     async function loadFacultyProfile() {
       if (!user) return
@@ -62,30 +69,38 @@ function FacultyProfile() {
           loadedData = { ...loadedData, ...remoteData }
         }
 
+        const resolvedAvatarURL = loadedData.avatarURL || loadedData.avatar || loadedData.photoURL || null
+
         const data = {
+          uid: user.uid,
           name: loadedData.name || userProfile?.name || '',
           email: loadedData.email || user.email || '',
           phone: loadedData.phone || '',
           dateOfBirth: loadedData.dateOfBirth || '',
           gender: loadedData.gender || '',
-          facultyId: loadedData.facultyId || `FAC-${user.uid.substring(0, 6).toUpperCase()}`,
-          department: loadedData.department || 'Computer Science & Engineering',
-          designation: loadedData.designation || 'Assistant Professor',
-          qualification: loadedData.qualification || 'M.Tech / Ph.D.',
-          specialization: loadedData.specialization || 'Software Engineering & Data Systems',
-          joiningDate: loadedData.joiningDate || '2023-07-15',
-          assignedSubjects: loadedData.assignedSubjects || 'Data Structures, Database Management Systems',
-          assignedBatches: loadedData.assignedBatches || '2023-27 CS-A, 2024-28 AI-B',
-          academicYear: loadedData.academicYear || '2025-2026',
-          avatar: loadedData.avatar || loadedData.photoURL || null
+          facultyId: loadedData.facultyId || '',
+          department: loadedData.department || '',
+          designation: loadedData.designation || '',
+          qualification: loadedData.qualification || '',
+          specialization: loadedData.specialization || '',
+          joiningDate: loadedData.joiningDate || '',
+          assignedSubjects: loadedData.assignedSubjects || '',
+          assignedBatches: loadedData.assignedBatches || '',
+          academicYear: loadedData.academicYear || '',
+          avatarURL: resolvedAvatarURL,
+          institutionId: loadedData.institutionId || '',
+          role: loadedData.role || 'faculty',
+          createdAt: loadedData.createdAt || '',
+          updatedAt: loadedData.updatedAt || ''
         }
 
         setProfile(data)
         setInitialProfile(data)
-        setAvatarPreview(data.avatar)
+        setAvatarPreview(resolvedAvatarURL)
         localStorage.setItem(localKey, JSON.stringify(data))
       } catch (err) {
-        console.error('Error loading faculty profile:', err)
+        console.error('Error loading faculty profile from Firestore:', err)
+        setAlert({ type: 'error', message: `⚠️ Could not load profile: ${err.message}` })
       } finally {
         setLoading(false)
       }
@@ -103,14 +118,14 @@ function FacultyProfile() {
     { key: 'qualification', label: 'Qualification' },
     { key: 'specialization', label: 'Specialization' },
     { key: 'assignedSubjects', label: 'Assigned Subjects' },
-    { key: 'avatar', label: 'Profile Picture' }
+    { key: 'avatarURL', label: 'Profile Picture' }
   ]
 
   const filledCount = completionFields.filter(f => Boolean(profile[f.key])).length
   const completionPercent = Math.round((filledCount / completionFields.length) * 100)
   const missingFields = completionFields.filter(f => !profile[f.key]).map(f => f.label)
 
-  // Handle Avatar Selection & Validation
+  // Handle Avatar Selection & Preview
   const handleAvatarChange = (e) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -131,14 +146,15 @@ function FacultyProfile() {
       return
     }
 
+    setSelectedImageFile(file)
     const reader = new FileReader()
     reader.onload = () => {
       const dataUrl = reader.result
       setAvatarPreview(dataUrl)
-      setProfile(prev => ({ ...prev, avatar: dataUrl }))
+      setProfile(prev => ({ ...prev, avatarURL: dataUrl }))
       setAlert({
         type: 'success',
-        message: '📷 Image preview loaded. Click "Save Changes" to apply.'
+        message: '📷 Image preview loaded. Click "Save Changes" to upload and save.'
       })
     }
     reader.onerror = () => {
@@ -149,13 +165,14 @@ function FacultyProfile() {
 
   // Remove Avatar
   const handleRemoveAvatar = () => {
+    setSelectedImageFile(null)
     setAvatarPreview(null)
-    setProfile(prev => ({ ...prev, avatar: null }))
+    setProfile(prev => ({ ...prev, avatarURL: null }))
     if (fileInputRef.current) fileInputRef.current.value = ''
     setAlert({ type: 'success', message: '🗑️ Profile picture removed. Click "Save Changes" to apply.' })
   }
 
-  // Save Profile Changes
+  // Save Profile Changes to Firestore
   const handleSaveProfile = async (e) => {
     if (e) e.preventDefault()
     setAlert(null)
@@ -167,39 +184,62 @@ function FacultyProfile() {
 
     try {
       setSaving(true)
-      const localKey = `ug_faculty_profile_${user.uid}`
+      const now = new Date().toISOString()
+      let finalAvatarURL = profile.avatarURL
 
-      // Update Firestore document
-      try {
-        await updateDoc(doc(db, 'faculty', user.uid), {
-          name: profile.name.trim(),
-          phone: profile.phone.trim(),
-          dateOfBirth: profile.dateOfBirth,
-          gender: profile.gender,
-          facultyId: profile.facultyId.trim(),
-          department: profile.department.trim(),
-          designation: profile.designation.trim(),
-          qualification: profile.qualification.trim(),
-          specialization: profile.specialization.trim(),
-          joiningDate: profile.joiningDate,
-          assignedSubjects: profile.assignedSubjects.trim(),
-          assignedBatches: profile.assignedBatches.trim(),
-          academicYear: profile.academicYear.trim(),
-          avatar: profile.avatar || null,
-          photoURL: profile.avatar || null
-        })
-      } catch (firestoreErr) {
-        console.warn('Firestore update fallback to local cache:', firestoreErr)
+      // Upload to Firebase Storage if a new file was chosen
+      if (selectedImageFile) {
+        try {
+          const sanitizedName = selectedImageFile.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+          const storagePath = `avatars/faculty/${user.uid}_${Date.now()}_${sanitizedName}`
+          const storageRef = ref(storage, storagePath)
+          await uploadBytes(storageRef, selectedImageFile)
+          finalAvatarURL = await getDownloadURL(storageRef)
+        } catch (storageErr) {
+          console.warn('Firebase Storage upload fallback:', storageErr)
+          // Keep base64 preview as fallback
+        }
       }
 
-      // Persist to local cache
-      localStorage.setItem(localKey, JSON.stringify(profile))
-      setInitialProfile(profile)
+      const updatedData = {
+        uid: user.uid,
+        name: profile.name.trim(),
+        email: profile.email || user.email || '',
+        phone: profile.phone.trim(),
+        dateOfBirth: profile.dateOfBirth,
+        gender: profile.gender,
+        facultyId: profile.facultyId.trim(),
+        department: profile.department.trim(),
+        designation: profile.designation.trim(),
+        qualification: profile.qualification.trim(),
+        specialization: profile.specialization.trim(),
+        joiningDate: profile.joiningDate,
+        assignedSubjects: profile.assignedSubjects.trim(),
+        assignedBatches: profile.assignedBatches.trim(),
+        academicYear: profile.academicYear.trim(),
+        avatarURL: finalAvatarURL || null,
+        institutionId: profile.institutionId || '',
+        role: 'faculty',
+        updatedAt: now
+      }
+
+      // 1. Update Firestore Document (faculty/{uid})
+      const facultyRef = doc(db, 'faculty', user.uid)
+      await updateDoc(facultyRef, updatedData)
+
+      // 2. Persist to local cache for instant reload
+      const localKey = `ug_faculty_profile_${user.uid}`
+      localStorage.setItem(localKey, JSON.stringify(updatedData))
+
+      setProfile(updatedData)
+      setInitialProfile(updatedData)
+      setAvatarPreview(finalAvatarURL)
+      setSelectedImageFile(null)
       setIsEditing(false)
-      setAlert({ type: 'success', message: '✅ Faculty profile saved successfully!' })
+      setAlert({ type: 'success', message: '✅ Faculty profile saved successfully to Firestore!' })
     } catch (err) {
-      console.error('Error saving faculty profile:', err)
-      setAlert({ type: 'error', message: `⚠️ ${err.message}` })
+      console.error('Error saving faculty profile to Firestore:', err)
+      setAlert({ type: 'error', message: `⚠️ Failed to save profile: ${err.message}` })
     } finally {
       setSaving(false)
     }
@@ -209,7 +249,8 @@ function FacultyProfile() {
   const handleCancelEdit = () => {
     if (initialProfile) {
       setProfile(initialProfile)
-      setAvatarPreview(initialProfile.avatar)
+      setAvatarPreview(initialProfile.avatarURL)
+      setSelectedImageFile(null)
     }
     setIsEditing(false)
     setAlert(null)
@@ -241,6 +282,8 @@ function FacultyProfile() {
     setAlert({ type: 'success', message: '✅ Password validated! (For self-service reset, use the Forgot Password workflow).' })
   }
 
+  const isProfileUnconfigured = !profile.name && !loading
+
   return (
     <main className="page-wrapper" style={{ maxWidth: 960 }}>
       {/* Header Badge */}
@@ -253,6 +296,26 @@ function FacultyProfile() {
           Manage your personal details, academic assignments, and institutional credentials.
         </p>
       </div>
+
+      {/* Unconfigured Setup Prompt */}
+      {isProfileUnconfigured && !isEditing && (
+        <div className="card fade-up" style={{ borderLeft: '4px solid #2563eb', background: '#eff6ff', marginBottom: 24 }}>
+          <h3 style={{ color: 'var(--primary)', fontSize: 16, margin: '0 0 6px' }}>
+            ℹ️ Welcome to UniGrade V2! Complete Your Faculty Profile
+          </h3>
+          <p style={{ color: '#334155', fontSize: 13.5, margin: '0 0 12px' }}>
+            Your faculty profile is currently incomplete. Click the button below to add your department, designation, qualifications, and assigned courses.
+          </p>
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() => setIsEditing(true)}
+            style={{ width: 'auto', padding: '8px 18px', fontSize: 13 }}
+          >
+            ✏️ Set Up Faculty Profile Now
+          </button>
+        </div>
+      )}
 
       {/* Alert Messages */}
       {alert && (
@@ -268,7 +331,7 @@ function FacultyProfile() {
           <div className="avatar-uploader-wrap">
             <div className="avatar-circle">
               {avatarPreview ? (
-                <img src={avatarPreview} alt={profile.name} />
+                <img src={avatarPreview} alt={profile.name || 'Faculty Avatar'} />
               ) : (
                 <span>👨‍🏫</span>
               )}
@@ -294,11 +357,11 @@ function FacultyProfile() {
           {/* Identity Meta */}
           <div className="profile-hero-meta">
             <h2>{profile.name || 'Faculty Member'}</h2>
-            <p>{profile.email}</p>
+            <p>{profile.email || user?.email}</p>
             <div className="profile-meta-badges">
-              <span className="badge badge-purple">{profile.designation || 'Faculty'}</span>
-              <span className="badge badge-blue">{profile.department}</span>
-              <span className="badge badge-green">ID: {profile.facultyId}</span>
+              {profile.designation && <span className="badge badge-purple">{profile.designation}</span>}
+              {profile.department && <span className="badge badge-blue">{profile.department}</span>}
+              {profile.facultyId && <span className="badge badge-green">ID: {profile.facultyId}</span>}
               <span className="badge badge-green">● Active &amp; Verified</span>
             </div>
           </div>
@@ -396,7 +459,7 @@ function FacultyProfile() {
                   type="text"
                   value={profile.name}
                   onChange={(e) => setProfile({ ...profile, name: e.target.value })}
-                  placeholder="e.g. Dr. Jane Smith"
+                  placeholder="Enter Full Name"
                   required
                 />
               </div>
@@ -417,7 +480,7 @@ function FacultyProfile() {
                   type="tel"
                   value={profile.phone}
                   onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
-                  placeholder="+91 98765 43210"
+                  placeholder="e.g. +91 98765 43210"
                 />
               </div>
               <div>
@@ -448,23 +511,23 @@ function FacultyProfile() {
             <div className="profile-info-grid">
               <div className="profile-field-view">
                 <span className="field-label">Full Name</span>
-                <span className="field-value">{profile.name || '—'}</span>
+                <span className="field-value">{profile.name || 'Not provided'}</span>
               </div>
               <div className="profile-field-view">
                 <span className="field-label">Email Address</span>
-                <span className="field-value">{profile.email || '—'}</span>
+                <span className="field-value">{profile.email || 'Not provided'}</span>
               </div>
               <div className="profile-field-view">
                 <span className="field-label">Phone Number</span>
-                <span className="field-value">{profile.phone || '—'}</span>
+                <span className="field-value">{profile.phone || 'Not provided'}</span>
               </div>
               <div className="profile-field-view">
                 <span className="field-label">Date of Birth</span>
-                <span className="field-value">{profile.dateOfBirth || '—'}</span>
+                <span className="field-value">{profile.dateOfBirth || 'Not provided'}</span>
               </div>
               <div className="profile-field-view">
                 <span className="field-label">Gender</span>
-                <span className="field-value">{profile.gender || '—'}</span>
+                <span className="field-value">{profile.gender || 'Not provided'}</span>
               </div>
             </div>
           )}
@@ -505,7 +568,7 @@ function FacultyProfile() {
                   type="text"
                   value={profile.designation}
                   onChange={(e) => setProfile({ ...profile, designation: e.target.value })}
-                  placeholder="e.g. Associate Professor / HOD"
+                  placeholder="e.g. Associate Professor / Assistant Professor"
                 />
               </div>
               <div>
@@ -519,7 +582,7 @@ function FacultyProfile() {
                 />
               </div>
               <div>
-                <label htmlFor="pSpec">Specialization / Research</label>
+                <label htmlFor="pSpec">Specialization / Research Area</label>
                 <input
                   id="pSpec"
                   type="text"
@@ -542,27 +605,27 @@ function FacultyProfile() {
             <div className="profile-info-grid">
               <div className="profile-field-view">
                 <span className="field-label">Faculty ID</span>
-                <span className="field-value">{profile.facultyId || '—'}</span>
+                <span className="field-value">{profile.facultyId || 'Not provided'}</span>
               </div>
               <div className="profile-field-view">
                 <span className="field-label">Department</span>
-                <span className="field-value">{profile.department || '—'}</span>
+                <span className="field-value">{profile.department || 'Not provided'}</span>
               </div>
               <div className="profile-field-view">
                 <span className="field-label">Designation</span>
-                <span className="field-value">{profile.designation || '—'}</span>
+                <span className="field-value">{profile.designation || 'Not provided'}</span>
               </div>
               <div className="profile-field-view">
                 <span className="field-label">Qualification</span>
-                <span className="field-value">{profile.qualification || '—'}</span>
+                <span className="field-value">{profile.qualification || 'Not provided'}</span>
               </div>
               <div className="profile-field-view">
                 <span className="field-label">Specialization</span>
-                <span className="field-value">{profile.specialization || '—'}</span>
+                <span className="field-value">{profile.specialization || 'Not provided'}</span>
               </div>
               <div className="profile-field-view">
                 <span className="field-label">Joining Date</span>
-                <span className="field-value">{profile.joiningDate || '—'}</span>
+                <span className="field-value">{profile.joiningDate || 'Not provided'}</span>
               </div>
             </div>
           )}
@@ -611,15 +674,15 @@ function FacultyProfile() {
             <div className="profile-info-grid">
               <div className="profile-field-view">
                 <span className="field-label">Assigned Subjects</span>
-                <span className="field-value">{profile.assignedSubjects || '—'}</span>
+                <span className="field-value">{profile.assignedSubjects || 'Not provided'}</span>
               </div>
               <div className="profile-field-view">
                 <span className="field-label">Assigned Batches</span>
-                <span className="field-value">{profile.assignedBatches || '—'}</span>
+                <span className="field-value">{profile.assignedBatches || 'Not provided'}</span>
               </div>
               <div className="profile-field-view">
                 <span className="field-label">Academic Year</span>
-                <span className="field-value">{profile.academicYear || '—'}</span>
+                <span className="field-value">{profile.academicYear || 'Not provided'}</span>
               </div>
             </div>
           )}
@@ -661,11 +724,11 @@ function FacultyProfile() {
           </div>
           <div className="profile-field-view">
             <span className="field-label">Account Status</span>
-            <span className="field-value" style={{ color: '#059669' }}>● Active &amp; Approved</span>
+            <span className="field-value" style={{ color: '#059669' }}>● Active &amp; Verified</span>
           </div>
           <div className="profile-field-view">
             <span className="field-label">Authentication</span>
-            <span className="field-value">Firebase Secure Auth</span>
+            <span className="field-value">Firebase Secure Auth (UniGradeV2)</span>
           </div>
         </div>
 

@@ -1,0 +1,95 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isAuthenticated() && request.auth.uid == uid;
+    }
+
+    // 1. Users Base Collection
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isOwner(userId);
+      allow delete: if false;
+    }
+
+    // 2. Faculty Profiles
+    match /faculty/{facultyId} {
+      allow read: if isAuthenticated();
+      allow create: if isOwner(facultyId);
+      allow update: if isOwner(facultyId) || isAuthenticated();
+      allow delete: if isAuthenticated();
+    }
+
+    // 3. Institution Profiles (Single Canonical Collection: institutions)
+    match /institutions/{institutionId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isOwner(institutionId);
+      allow delete: if false;
+    }
+
+    // 4. Students Collection
+    match /students/{studentId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+
+    // 5. Subjects Collection
+    match /subjects/{subjectId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+
+    // 6. Academic Structures (Years, Semesters, Departments)
+    match /academicStructures/{institutionId} {
+      allow read: if isAuthenticated();
+      allow write: if isOwner(institutionId) || isAuthenticated();
+    }
+
+    // 7. Evaluation Schemes
+    match /evaluationSchemes/{schemeId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+
+    // 8. Grading Systems
+    match /gradingSystems/{systemId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+
+    // 9. Marks & Raw Records
+    match /records/{recordId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /marks/{markId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // 10. Graded Results & SGPA
+    match /gradedRecords/{recordId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /results/{resultId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    match /sgpaResults/{sgpaId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // 11. Immutable Audit Logs
+    match /auditLogs/{logId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if false; // strictly immutable audit trail
+    }
+  }
+}
