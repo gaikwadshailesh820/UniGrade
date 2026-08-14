@@ -1,8 +1,26 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 
 function Navbar() {
   const [dropdownOpen, setDropdownOpen] = useState(false)
+  const dropdownRef = useRef(null)
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target)
+      ) {
+        setDropdownOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [])
 
   const navClass = ({ isActive }) =>
     isActive ? 'active-nav' : ''
@@ -25,7 +43,7 @@ function Navbar() {
             SGPA Calculator
           </NavLink>
 
-          <div className="dropdown">
+          <div className="dropdown" ref={dropdownRef}>
 
             <button
               className="signin-btn"
@@ -37,11 +55,17 @@ function Navbar() {
             {dropdownOpen && (
               <div className="dropdown-content">
 
-                <NavLink to="/faculty-login">
+                <NavLink
+                  to="/FacultyLogin"
+                  onClick={() => setDropdownOpen(false)}
+                >
                   👨‍🏫 Faculty Login
                 </NavLink>
 
-                <NavLink to="/institution-login">
+                <NavLink
+                  to="/InstitutionLogin"
+                  onClick={() => setDropdownOpen(false)}
+                >
                   🏛️ Institution Login
                 </NavLink>
 
