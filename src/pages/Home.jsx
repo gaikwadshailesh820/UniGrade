@@ -1,17 +1,22 @@
+import { Link } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
+
 function Home() {
+  const { user, userRole } = useAuth()
+
+  const getStartedPath = !user
+    ? '/sgpa'
+    : userRole === 'institution'
+      ? '/institution-dashboard'
+      : '/faculty-dashboard'
+
   return (
     <>
       <main className="home-container">
-
         <section className="hero-section">
-
-          <h1>
-            🎓 UniGrade
-          </h1>
-
+          <h1>🎓 UniGrade</h1>
           <p>
-            Simplifying Academic Evaluation, Grading &amp;
-            Performance Management
+            Simplifying Academic Evaluation, Grading &amp; Performance Management
           </p>
 
           <div className="hero-badge">
@@ -19,16 +24,23 @@ function Home() {
           </div>
 
           <div className="hero-actions">
-            <button>
-              Get Started →
-            </button>
-          </div>
+            <Link to={getStartedPath}>
+              <button type="button" className="hero-btn hero-btn-primary">
+                {user ? 'Go to Dashboard →' : 'Calculate SGPA →'}
+              </button>
+            </Link>
 
+            {!user && (
+              <Link to="/faculty-login">
+                <button type="button" className="hero-btn hero-btn-secondary">
+                  Faculty Portal →
+                </button>
+              </Link>
+            )}
+          </div>
         </section>
 
-
         <section className="stats-section">
-
           <div className="stat">
             <h2>100%</h2>
             <p>Centralized Evaluation</p>
@@ -48,34 +60,16 @@ function Home() {
             <h2>Fair</h2>
             <p>Relative Grading Engine</p>
           </div>
-
         </section>
-
       </main>
 
-
       <footer className="footer">
-
         <div className="footer-content">
-
-          <h3>
-            🎓 UniGrade
-          </h3>
-
-          <p>
-            Modern Academic Evaluation Platform for Students &amp; Faculty
-          </p>
-
-          <p>
-           <b>Developed By Shailesh Gaikwad</b>
-          </p>
-
-          <p className="copyright">
-            © 2026 UniGrade. All Rights Reserved.
-          </p>
-
+          <h3>🎓 UniGrade</h3>
+          <p>Modern Academic Evaluation Platform for Students &amp; Faculty</p>
+          <p>Developed during Web Development Internship at Teople Technologies</p>
+          <p className="copyright">© 2026 UniGrade. All Rights Reserved.</p>
         </div>
-
       </footer>
     </>
   )

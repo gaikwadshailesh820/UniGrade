@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# UniGrade V1 legacy/reference project
+UniGradeV1/
